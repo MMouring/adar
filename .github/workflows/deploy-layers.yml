@@ -1,0 +1,59 @@
+name: Deploy Lambda Layers
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Build and Upload Python 2.7 Layers
+        run: |
+          for req in requirements/pandas.txt requirements/numpy.txt requirements/scikit-learn.txt requirements/pyarrow.txt; do
+            pkg=$(basename $req .txt)
+            ./deploy-layer.sh $pkg
+          done
+
+      - name: Build and Upload Python 3.11 Layers
+        run: |
+          for req in requirements/google-ads.txt; do
+            pkg=$(basename $req .txt)
+            ./deploy-layer-3.sh $pkg
+          done
+
+      - name: Build and Upload Python 3.12 Layers
+        run: |
+          for req in requirements/pytz.txt requirements/simplejson.txt; do
+            pkg=$(basename $req .txt)
+            ./deploy-layer.sh $pkg
+          done
+
+      - name: Deploy StackSet
+        run: |
+          aws cloudformation create-stack-set \
+            --stack-set-name python-lambda-layers \
+            --template-body file://lambda-layers-stackset.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --permission-model SERVICE_MANAGED \
+            --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false
+
+          aws cloudformation create-stack-instances \
+            --stack-set-name python-lambda-layers \
+            --regions us-east-1 \
+            --deployment-targets OrganizationalUnitIds='["${OU_ID}"]' \
+            --parameter-overrides ParameterKey=TargetEnvironment,ParameterValue=production

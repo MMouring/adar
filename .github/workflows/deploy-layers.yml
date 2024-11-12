@@ -43,17 +43,28 @@ jobs:
             ./deploy-layer.sh $pkg
           done
 
-      - name: Deploy StackSet
+      - name: Package CloudFormation Template
         run: |
-          aws cloudformation create-stack-set \
-            --stack-set-name python-lambda-layers \
-            --template-body file://lambda-layers-stackset.yaml \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --permission-model SERVICE_MANAGED \
-            --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false
+          aws cloudformation package \
+            --template-file lambda-layers-stackset.yaml \
+            --output-template-file lambda-layers-stackset-output.yaml \
+            --s3-bucket ihs-deploy \
+            --s3-prefix cloudformation
 
-          aws cloudformation create-stack-instances \
+      - name: Upload Template to StackSets Bucket
+        run: |
+          aws s3 cp lambda-layers-stackset-output.yaml s3://ihs-deploy/stacksets/python-lambda-layers.yml
+
+      - name: Update StackSet
+        run: |
+          aws cloudformation update-stack-set \
             --stack-set-name python-lambda-layers \
+            --template-url https://s3.amazonaws.com/ihs-deploy/stacksets/python-lambda-layers.yml \
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --permission-model SERVICE_MANAGED \
+            --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false \
+            --operation-preferences RegionConcurrencyType=PARALLEL,MaxConcurrentPercentage=100 \
             --regions us-east-1 \
-            --deployment-targets OrganizationalUnitIds='["${OU_ID}"]' \
-            --parameter-overrides ParameterKey=TargetEnvironment,ParameterValue=production
+            --parameter-overrides \
+              ParameterKey=TargetEnvironment,ParameterValue=production \
+              ParameterKey=TargetRegion,ParameterValue=us-east-1

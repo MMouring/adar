@@ -7,15 +7,6 @@ Parameters:
     Type: String
     Description: The region where the Lambda layers will be deployed
     Default: us-east-1
-  
-  TargetEnvironment:
-    Type: String
-    Description: Environment tag for the Lambda layers
-    Default: production
-    AllowedValues:
-      - development
-      - staging
-      - production
 
 Resources:
   PandasLayer:
@@ -27,11 +18,11 @@ Resources:
         S3Bucket: ihs-deploy
         S3Key: pandas-layer.zip
       Description: numpy 1.15.4, pandas 0.24.2, pytz 2018.7
-      LayerName: !Sub ${TargetEnvironment}-python27-pandas-layer
+      LayerName: !Sub ${AWS::StackName}-python27-pandas-layer
       LicenseInfo: MIT
       Tags:
         - Key: Environment
-          Value: !Ref TargetEnvironment
+          Value: !Ref AWS::StackName
 
   Pandas39Layer:
     Type: AWS::Lambda::LayerVersion

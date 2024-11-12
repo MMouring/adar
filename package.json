@@ -1,0 +1,9 @@
+{
+  "name": "lambda-layers",
+  "version": "1.0.0",
+  "description": "AWS Lambda Layers for Python Dependencies",
+  "private": true,
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  }
+}

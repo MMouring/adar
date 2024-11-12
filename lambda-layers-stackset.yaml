@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Python Lambda Layers (StackSet Version)
+
+Parameters:
+  TargetRegion:
+    Type: String
+    Description: The region where the Lambda layers will be deployed
+    Default: us-east-1
+  
+  TargetEnvironment:
+    Type: String
+    Description: Environment tag for the Lambda layers
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+
+Resources:
+  PandasLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python2.7
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: pandas-layer.zip
+      Description: numpy 1.15.4, pandas 0.24.2, pytz 2018.7
+      LayerName: !Sub ${TargetEnvironment}-python27-pandas-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+  Pandas39Layer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.9
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: pandas-layer.zip
+      Description: numpy 1.23.4, pandas 1.5.1, pytz 2022.6
+      LayerName: !Sub ${TargetEnvironment}-python39-pandas-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+  NumpyLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python2.7
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: numpy-layer.zip
+      Description: numpy 1.16.3
+      LayerName: !Sub ${TargetEnvironment}-python27-numpy-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+  ScikitLearnLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python2.7
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: scikit-learn-layer.zip
+      Description: scipy 0.19.0, scikit-learn 0.18.1
+      LayerName: !Sub ${TargetEnvironment}-python27-scikit-learn-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+  PyarrowLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python2.7
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: pyarrow-layer.zip
+      Description: futures 3.2.0, pyarrow 0.13.0, six 1.11.0r
+      LayerName: !Sub ${TargetEnvironment}-python27-pyarrow-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+  Pyarrow39Layer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.9
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: pyarrow-layer.zip
+      Description: futures3 1.0.0, pyarrow 10.0.0, six 1.16.0
+      LayerName: !Sub ${TargetEnvironment}-python39-pyarrow-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+  PytzLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.12
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: pytz-layer.zip
+      Description: ptyz 2024.1 v2
+      LayerName: !Sub ${TargetEnvironment}-python312-pytz-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+  SimpleJsonLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.12
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: simplejson-layer.zip
+      Description: simplejson 3.19.2 v2
+      LayerName: !Sub ${TargetEnvironment}-python312-simplejson-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+  GoogleAdsLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.11
+        - python3.12
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: google-ads-layer.zip
+      Description: google-ads 24.0.0 v5
+      LayerName: !Sub ${TargetEnvironment}-python312-google-ads-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+  BingAdsLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.7
+      Content:
+        S3Bucket: ihs-deploy
+        S3Key: bingads-layer.zip
+      Description: bingads 13.0.8
+      LayerName: !Sub ${TargetEnvironment}-python37-bingads-layer
+      LicenseInfo: MIT
+      Tags:
+        - Key: Environment
+          Value: !Ref TargetEnvironment
+
+Outputs:
+  StackSetRegion:
+    Description: The region where this StackSet instance was deployed
+    Value: !Ref TargetRegion
+  Environment:
+    Description: The environment for this StackSet instance
+    Value: !Ref TargetEnvironment

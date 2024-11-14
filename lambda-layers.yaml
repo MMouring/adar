@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-01'
+Description: 'Lambda Layers for Advertising SDKs'
+
+Parameters:
+  LayerNamePrefix:
+    Type: String
+    Default: advertising-sdk
+    Description: Prefix for layer names
+
+Resources:
+  BingAdsLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub ${LayerNamePrefix}-bingads
+      Description: BingAds SDK Layer
+      CompatibleRuntimes: 
+        - python3.8
+        - python3.9
+        - python3.10
+        - python3.11
+      Content:
+        S3Bucket: !Ref LayersBucket
+        S3Key: bingads-layer.zip
+      LicenseInfo: MIT
+
+  GoogleAdsLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub ${LayerNamePrefix}-googleads
+      Description: Google Ads SDK Layer
+      CompatibleRuntimes:
+        - python3.8
+        - python3.9
+        - python3.10
+        - python3.11
+      Content:
+        S3Bucket: !Ref LayersBucket
+        S3Key: googleads-layer.zip
+      LicenseInfo: Apache-2.0
+
+  LayersBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-layers
+      VersioningConfiguration:
+        Status: Enabled
+
+Outputs:
+  BingAdsLayerArn:
+    Description: ARN of the BingAds Layer
+    Value: !Ref BingAdsLayer
+    Export:
+      Name: !Sub ${AWS::StackName}-BingAdsLayerArn
+
+  GoogleAdsLayerArn:
+    Description: ARN of the Google Ads Layer
+    Value: !Ref GoogleAdsLayer
+    Export:
+      Name: !Sub ${AWS::StackName}-GoogleAdsLayerArn
+
+  LayersBucketName:
+    Description: Name of the S3 bucket for layers
+    Value: !Ref LayersBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-LayersBucketName

@@ -22,34 +22,36 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Build and Upload Python 2.7 Layers
-        run: |
-          for req in requirements/pandas.txt requirements/numpy.txt requirements/scikit-learn.txt requirements/pyarrow.txt; do
-            pkg=$(basename $req .txt)
-            ./deploy-layer.sh $pkg
-          done
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-      - name: Build and Upload Python 3.11 Layers
+      - name: Create build directories
         run: |
-          for req in requirements/google-ads.txt; do
-            pkg=$(basename $req .txt)
-            ./deploy-layer-3.sh $pkg
-          done
+          mkdir -p dist
+          chmod +x scripts/build-layer.sh
 
-      - name: Build and Upload Python 3.12 Layers
+      - name: Build Layers
         run: |
-          for req in requirements/pytz.txt requirements/simplejson.txt; do
-            pkg=$(basename $req .txt)
-            ./deploy-layer.sh $pkg
-          done
+          ./scripts/build-layer.sh bingads
+          ./scripts/build-layer.sh google-ads
 
-      - name: Package CloudFormation Template
+      - name: Upload Layer Packages to S3
         run: |
-          aws cloudformation package \
-            --template-file lambda-layers-stackset.yaml \
-            --output-template-file lambda-layers-stackset-output.yaml \
-            --s3-bucket ihs-deploy \
-            --s3-prefix cloudformation
+          aws s3 cp dist/bingads-layer.zip "s3://${AWS_BUCKET}/bingads-layer.zip"
+          aws s3 cp dist/google-ads-layer.zip "s3://${AWS_BUCKET}/googleads-layer.zip"
+        env:
+          AWS_BUCKET: ${{ vars.LAYERS_BUCKET_NAME }}
+
+      - name: Deploy CloudFormation Stack
+        run: |
+          aws cloudformation deploy \
+            --template-file lambda-layers.yaml \
+            --stack-name advertising-sdk-layers \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              LayerNamePrefix=advertising-sdk
 
       - name: Upload Template to StackSets Bucket
         run: |

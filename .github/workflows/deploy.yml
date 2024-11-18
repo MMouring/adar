@@ -1,85 +1,59 @@
-name: Deploy Lambda Layers
+name: Stage - CloudFormation StackSet Deployment
 
 on:
   push:
-    branches: [ main ]
+    branches: ["main"]
   workflow_dispatch:
+    branches: ["main"]
 
-permissions:
-  id-token: write
-  contents: read
+env:
+  AWS_ADMIN_ACCOUNT_ID: ${{ vars.AWS_ADMIN_ACCOUNT_ID }}
+  AWS_ADMIN_REGION: "us-east-1"
+  AWS_DEPLOYMENT_ROLE_ARN: ${{ vars.AWS_DEV_DEPLOYMENT_ROLE_ARN }}
+  ENVIRONMENT: "stage"
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    environment: stage
+    permissions:
+      id-token: write
+      contents: read
     
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Configure AWS credentials
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          role-to-assume: ${{ env.AWS_DEPLOYMENT_ROLE_ARN }}
+          role-session-name: "stage-deployment"
+          aws-region: ${{ env.AWS_ADMIN_REGION }}
+          audience: sts.amazonaws.com
 
-      - name: Build and Upload Python 2.7 Layers
-        run: |
-          for req in requirements/pandas.txt requirements/numpy.txt requirements/scikit-learn.txt requirements/pyarrow.txt; do
-            pkg=$(basename $req .txt)
-            ./deploy-layer.sh $pkg
-          done
 
-      - name: Build and Upload Python 3.11 Layers
+      - name: Set up accounts and regions map
         run: |
-          for req in requirements/google-ads.txt; do
-            pkg=$(basename $req .txt)
-            ./deploy-layer-3.sh $pkg
-          done
+          ACCOUNTS_AND_REGIONS='{
+            "AWS_DEV_1": {
+              "account_id": "'${{ vars.AWS_DEV_ACCOUNT_ID }}'",
+              "regions": ["us-east-1"]
+            }
+          }'
+          echo "ACCOUNTS_AND_REGIONS=$ACCOUNTS_AND_REGIONS" >> $GITHUB_ENV
 
-      - name: Build and Upload Python 3.12 Layers
+      - name: Package Python Requirements
         run: |
-          for req in requirements/pytz.txt requirements/simplejson.txt; do
-            pkg=$(basename $req .txt)
-            ./deploy-layer.sh $pkg
-          done
+          chmod +x scripts/package-python-requirements.sh
+          ./scripts/package-python-requirements.sh
 
-      - name: Set environment variables
+      - name: Upload CloudFormation Template
         run: |
-          echo "ACCOUNTS=677996239377 123456789012" >> $GITHUB_ENV
-          echo "REGIONS=us-east-1 us-west-2" >> $GITHUB_ENV
+          chmod +x scripts/upload-cloudformation.sh
+          ./scripts/upload-cloudformation.sh
 
-      - name: Package CloudFormation Template
+      - name: Deploy CloudFormation StackSet
         run: |
-          for account in $ACCOUNTS; do
-            for region in $REGIONS; do
-              aws cloudformation package \
-                --template-file cloudformation-stack-set.yaml \
-                --output-template-file cloudformation-stack-set-output.yaml \
-                --s3-bucket hotel-planner-deploy-$account-$region \
-                --s3-prefix cloudformation \
-                --region $region
-            done
-          done
-
-      - name: Process Template
-        run: |
-          sed -i.bak 's/CodeUri: s3:\/\/hotel-planner-deploy-[0-9]*-[a-z]*-[a-z]*-[0-9]*\/\(.*\)/CodeUri: {Bucket: !Sub \"hotel-planner-deploy-${AWS::AccountId}-${AWS::Region}\", Key: \"\1\"}/g' cloudformation-stack-set-output.yaml
-          rm *.bak
-
-      - name: Upload Template to StackSets Bucket
-        run: |
-          aws s3 cp cloudformation-stack-set-output.yaml s3://hotel-planner-stack-sets/hotel-planner-python-lambda-layers.yml
-
-      - name: Update StackSet
-        run: |
-          aws cloudformation update-stack-set \
-            --stack-set-name hotel-planner-python-lambda-layers \
-            --template-url https://s3.amazonaws.com/hotel-planner-stack-sets/hotel-planner-python-lambda-layers.yml \
-            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-            --permission-model SERVICE_MANAGED \
-            --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false \
-            --operation-preferences RegionConcurrencyType=PARALLEL,MaxConcurrentPercentage=100 \
-            --accounts $ACCOUNTS \
-            --regions $REGIONS \
-            --parameter-overrides \
-              ParameterKey=TargetEnvironment,ParameterValue=production
+          chmod +x scripts/deploy-stackset.sh
+          ./scripts/deploy-stackset.sh

@@ -19,6 +19,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      deployments: write
     
     steps:
       - name: Check out code
@@ -32,6 +33,7 @@ jobs:
           aws-region: ${{ env.AWS_ADMIN_REGION }}
           audience: "sts.amazonaws.com"
           mask-aws-account-id: "false"
+          role-external-id: "stage"
 
 
       - name: Set up accounts and regions map

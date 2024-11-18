@@ -30,7 +30,8 @@ jobs:
           role-to-assume: ${{ env.AWS_DEPLOYMENT_ROLE_ARN }}
           role-session-name: "stage-deployment"
           aws-region: ${{ env.AWS_ADMIN_REGION }}
-          audience: sts.amazonaws.com
+          audience: "sts.amazonaws.com"
+          mask-aws-account-id: "false"
 
 
       - name: Set up accounts and regions map

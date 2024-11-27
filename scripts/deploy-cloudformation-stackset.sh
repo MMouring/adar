@@ -12,17 +12,48 @@ echo "$ACCOUNTS_AND_REGIONS" > accounts_and_regions.json
 STACK_NAME="${ENVIRONMENT}-hotel-planner-python-lambda-layers-stack-set"
 TEMPLATE_FILE="cloudformation-stack-set.yml"
 
-# Create or update StackSet (capabilities needed here)
-if aws cloudformation create-stack-set \
+# Function to wait for stack set operation to complete
+wait_for_operation() {
+    local stack_set_name=$1
+    local operation_id=$2
+    
+    while true; do
+        STATUS=$(aws cloudformation describe-stack-set-operation \
+            --stack-set-name "$stack_set_name" \
+            --operation-id "$operation_id" \
+            --query 'StackSetOperation.Status' \
+            --output text)
+        
+        if [ "$STATUS" == "SUCCEEDED" ]; then
+            echo "Operation completed successfully"
+            return 0
+        elif [ "$STATUS" == "FAILED" ] || [ "$STATUS" == "STOPPED" ]; then
+            echo "Operation failed or was stopped"
+            return 1
+        fi
+        
+        echo "Operation in progress... waiting"
+        sleep 10
+    done
+}
+
+# Create or update StackSet
+OPERATION_ID=$(aws cloudformation update-stack-set \
     --stack-set-name "$STACK_NAME" \
     --template-body "file://$TEMPLATE_FILE" \
-    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND; then
-    echo "StackSet created successfully"
-elif aws cloudformation update-stack-set \
+    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+    --query 'OperationId' \
+    --output text || \
+aws cloudformation create-stack-set \
     --stack-set-name "$STACK_NAME" \
     --template-body "file://$TEMPLATE_FILE" \
-    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND; then
-    echo "StackSet updated successfully"
+    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+    --query 'OperationId' \
+    --output text)
+
+if [ $? -eq 0 ]; then
+    echo "StackSet operation initiated with Operation ID: $OPERATION_ID"
+    wait_for_operation "$STACK_NAME" "$OPERATION_ID" || exit 1
 else
     echo "Error: Failed to create or update StackSet"
     exit 1
@@ -33,14 +64,27 @@ while IFS= read -r ACCOUNT; do
     ACCOUNT_ID=$(jq -r ".[\"$ACCOUNT\"].account_id" accounts_and_regions.json)
     while IFS= read -r REGION; do
         echo "Deploying to Account: $ACCOUNT_ID, Region: $REGION"
-        if aws cloudformation create-stack-instances \
+        
+        OPERATION_ID=$(aws cloudformation create-stack-instances \
             --stack-set-name "$STACK_NAME" \
             --regions "$REGION" \
             --accounts "$ACCOUNT_ID" \
-            --operation-preferences FailureToleranceCount=0,MaxConcurrentCount=1; then
-            echo "CloudFormation stack deployed successfully"
+            --operation-preferences FailureToleranceCount=0,MaxConcurrentCount=1 \
+            --query 'OperationId' \
+            --output text || \
+        aws cloudformation update-stack-instances \
+            --stack-set-name "$STACK_NAME" \
+            --regions "$REGION" \
+            --accounts "$ACCOUNT_ID" \
+            --operation-preferences FailureToleranceCount=0,MaxConcurrentCount=1 \
+            --query 'OperationId' \
+            --output text)
+            
+        if [ $? -eq 0 ]; then
+            echo "Stack instances operation initiated with Operation ID: $OPERATION_ID"
+            wait_for_operation "$STACK_NAME" "$OPERATION_ID" || exit 1
         else
-            echo "Error: Failed to deploy CloudFormation stack"
+            echo "Error: Failed to deploy stack instances"
             exit 1
         fi
     done < <(jq -r ".[\"$ACCOUNT\"].regions[]" accounts_and_regions.json)

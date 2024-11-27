@@ -46,24 +46,6 @@ jobs:
           chmod +x scripts/upload-cloudformation-template.sh
           ./scripts/upload-cloudformation-template.sh
 
-      - name: Create StackSet IAM Roles
-        run: |
-          # Create the administrator role
-          aws cloudformation create-stack \
-            --stack-name "cloudformation-stackset-admin-role" \
-            --template-url "https://s3.amazonaws.com/cloudformation-stackset-sample-templates-us-east-1/AWSCloudFormationStackSetAdministrationRole.yml" \
-            --capabilities CAPABILITY_NAMED_IAM || true
-
-          # Create the execution role
-          aws cloudformation create-stack \
-            --stack-name "cloudformation-stackset-execution-role" \
-            --template-url "https://s3.amazonaws.com/cloudformation-stackset-sample-templates-us-east-1/AWSCloudFormationStackSetExecutionRole.yml" \
-            --parameters ParameterKey=AdministratorAccountId,ParameterValue=${{ env.AWS_ADMIN_ACCOUNT_ID }} \
-            --capabilities CAPABILITY_NAMED_IAM || true
-
-          # Wait for roles to be created
-          aws cloudformation wait stack-create-complete --stack-name "cloudformation-stackset-admin-role" || true
-          aws cloudformation wait stack-create-complete --stack-name "cloudformation-stackset-execution-role" || true
 
       - name: Deploy CloudFormation StackSet
         run: |

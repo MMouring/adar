@@ -1,9 +1,9 @@
 {
-  "name": "lambda-layers",
-  "version": "1.0.0",
-  "description": "AWS Lambda Layers for Python Dependencies",
-  "private": true,
-  "scripts": {
-    "test": "echo \"No tests specified\""
-  }
+    "name": "hotel-planner-python-lambda-layers",
+    "version": "1.0.2",
+    "description": "Python lambda layers for the hotel planner cloud / serverless projects.",
+    "author": "MMouring",
+    "license": "ISC",
+    "devDependencies": {},
+    "dependencies": {}
 }

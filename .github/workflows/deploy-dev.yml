@@ -4,12 +4,12 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
-    branches: ["main"]
 
 env:
   AWS_ADMIN_ACCOUNT_ID: ${{ vars.AWS_ADMIN_ACCOUNT_ID }}
-  AWS_ADMIN_REGION: "us-east-1"
-  AWS_DEPLOYMENT_ROLE_ARN: ${{ vars.AWS_DEV_DEPLOYMENT_ROLE_ARN }}
+  AWS_DEPLOYMENT_REGION: "us-east-1"
+  AWS_DEPLOYMENT_ROLE_ARN: "arn:aws:iam::275193884268:role/github-automations-role-dev"
+  # AWS_DEPLOYMENT_ROLE_ARN: ${{ vars.AWS_DEV_DEPLOYMENT_ROLE_ARN }} --> Will need to update to above permission
   ENVIRONMENT: "stage"
 
 jobs:
@@ -19,7 +19,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      deployments: write
     
     steps:
       - name: Check out code
@@ -29,23 +28,14 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_DEPLOYMENT_ROLE_ARN }}
-          role-session-name: "stage-deployment"
-          aws-region: ${{ env.AWS_ADMIN_REGION }}
+          aws-region: ${{ env.AWS_DEPLOYMENT_REGION }}
           audience: "sts.amazonaws.com"
-          mask-aws-account-id: "false"
-          role-external-id: "stage"
-
 
       - name: Set up accounts and regions map
         run: |
-          ACCOUNTS_AND_REGIONS='{
-            "AWS_DEV_1": {
-              "account_id": "'${{ vars.AWS_DEV_ACCOUNT_ID }}'",
-              "regions": ["us-east-1"]
-            }
-          }'
+          ACCOUNTS_AND_REGIONS='{"AWS_DEV_1":{"account_id":"${{ vars.AWS_DEV_ACCOUNT_ID }}","regions":["us-east-1"]}}'
           echo "ACCOUNTS_AND_REGIONS=$ACCOUNTS_AND_REGIONS" >> $GITHUB_ENV
-
+      
       - name: Package Python Requirements
         run: |
           chmod +x scripts/package-python-requirements.sh
@@ -53,10 +43,10 @@ jobs:
 
       - name: Upload CloudFormation Template
         run: |
-          chmod +x scripts/upload-cloudformation.sh
-          ./scripts/upload-cloudformation.sh
+          chmod +x scripts/upload-cloudformation-template.sh
+          ./scripts/upload-cloudformation-template.sh
 
       - name: Deploy CloudFormation StackSet
         run: |
-          chmod +x scripts/deploy-stackset.sh
-          ./scripts/deploy-stackset.sh
+          chmod +x scripts/deploy-cloudformation-stackset.sh
+          ./scripts/deploy-cloudformation-stackset.sh

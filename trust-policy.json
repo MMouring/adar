@@ -21,7 +21,8 @@
             "Sid": "CloudFormationTrustPolicy",
             "Effect": "Allow",
             "Principal": {
-                "Service": "cloudformation.amazonaws.com"
+                "Service": "cloudformation.amazonaws.com",
+                "AWS": "arn:aws:iam::275193884268:role/github-automations-role-dev"
             },
             "Action": "sts:AssumeRole"
         }

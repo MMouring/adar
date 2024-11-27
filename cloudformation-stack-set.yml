@@ -32,8 +32,8 @@ Resources:
 Outputs:
   GoogleAdsLayerArn:
     Description: ARN for the Google Ads Lambda Layer
-    Value: !GetAtt GoogleAdsLayer.Arn
+    Value: !Ref GoogleAdsLayer
 
   BingAdsLayerArn:
     Description: ARN for the Bing Ads Lambda Layer
-    Value: !GetAtt BingAdsLayer.Arn
+    Value: !Ref BingAdsLayer

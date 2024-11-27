@@ -18,21 +18,30 @@ wait_for_operation() {
     local operation_id=$2
     
     while true; do
-        STATUS=$(aws cloudformation describe-stack-set-operation \
+        OPERATION_INFO=$(aws cloudformation describe-stack-set-operation \
             --stack-set-name "$stack_set_name" \
-            --operation-id "$operation_id" \
-            --query 'StackSetOperation.Status' \
-            --output text)
+            --operation-id "$operation_id")
+        
+        STATUS=$(echo "$OPERATION_INFO" | jq -r '.StackSetOperation.Status')
         
         if [ "$STATUS" == "SUCCEEDED" ]; then
             echo "Operation completed successfully"
             return 0
         elif [ "$STATUS" == "FAILED" ] || [ "$STATUS" == "STOPPED" ]; then
             echo "Operation failed or was stopped"
+            echo "Detailed operation info:"
+            echo "$OPERATION_INFO" | jq '.'
+            
+            # Get specific error details from stack instances if available
+            INSTANCES_INFO=$(aws cloudformation list-stack-set-operation-results \
+                --stack-set-name "$stack_set_name" \
+                --operation-id "$operation_id")
+            echo "Stack instance results:"
+            echo "$INSTANCES_INFO" | jq '.'
             return 1
         fi
         
-        echo "Operation in progress... waiting"
+        echo "Operation in progress... Status: $STATUS"
         sleep 10
     done
 }

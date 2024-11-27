@@ -90,7 +90,7 @@ OPERATION_ID=$(retry aws cloudformation update-stack-set \
     --template-body "file://$TEMPLATE_FILE" \
     --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
     --administration-role-arn "$AWS_DEPLOYMENT_ROLE_ARN" \
-    --execution-role-name "github-automations-role-dev" \
+    --execution-role-name "AWSCloudFormationStackSetExecutionRole" \
     --query 'OperationId' \
     --output text || \
 retry aws cloudformation create-stack-set \
@@ -98,7 +98,7 @@ retry aws cloudformation create-stack-set \
     --template-body "file://$TEMPLATE_FILE" \
     --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
     --administration-role-arn "$AWS_DEPLOYMENT_ROLE_ARN" \
-    --execution-role-name "github-automations-role-dev" \
+    --execution-role-name "AWSCloudFormationStackSetExecutionRole" \
     --query 'OperationId' \
     --output text)
 

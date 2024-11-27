@@ -1,16 +1,39 @@
 #!/bin/bash
 
-# Ensure required environment variables are set and previous step was successful
-if [ -z "$ENVIRONMENT" ]; then
-    echo "Error: ENVIRONMENT variable not set"
+set -e
+
+# Function for logging
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+}
+
+# Function to handle errors
+error_handler() {
+    log "Error occurred in script at line: $1"
     exit 1
-fi
+}
 
-# Store the JSON in a temporary file for jq processing
-echo "$ACCOUNTS_AND_REGIONS" > accounts_and_regions.json
+trap 'error_handler ${LINENO}' ERR
 
-STACK_NAME="${ENVIRONMENT}-hotel-planner-python-lambda-layers-stack-set"
-TEMPLATE_FILE="cloudformation-stack-set.yml"
+# Function to retry commands
+retry() {
+    local max_attempts=3
+    local delay=5
+    local attempt=1
+    
+    while true; do
+        "$@" && break || {
+            if [[ $attempt -lt $max_attempts ]]; then
+                log "Command failed. Attempt $attempt/$max_attempts. Retrying in $delay seconds..."
+                sleep $delay
+                ((attempt++))
+            else
+                log "Command failed after $max_attempts attempts. Exiting..."
+                return 1
+            fi
+        }
+    done
+}
 
 # Function to wait for stack set operation to complete
 wait_for_operation() {
@@ -25,29 +48,44 @@ wait_for_operation() {
         STATUS=$(echo "$OPERATION_INFO" | jq -r '.StackSetOperation.Status')
         
         if [ "$STATUS" == "SUCCEEDED" ]; then
-            echo "Operation completed successfully"
+            log "Operation completed successfully"
             return 0
         elif [ "$STATUS" == "FAILED" ] || [ "$STATUS" == "STOPPED" ]; then
-            echo "Operation failed or was stopped"
-            echo "Detailed operation info:"
+            log "Operation failed or was stopped"
+            log "Detailed operation info:"
             echo "$OPERATION_INFO" | jq '.'
             
             # Get specific error details from stack instances if available
             INSTANCES_INFO=$(aws cloudformation list-stack-set-operation-results \
                 --stack-set-name "$stack_set_name" \
                 --operation-id "$operation_id")
-            echo "Stack instance results:"
+            log "Stack instance results:"
             echo "$INSTANCES_INFO" | jq '.'
             return 1
         fi
         
-        echo "Operation in progress... Status: $STATUS"
+        log "Operation in progress... Status: $STATUS"
         sleep 10
     done
 }
 
+# Ensure required environment variables are set
+if [ -z "$ENVIRONMENT" ]; then
+    log "Error: ENVIRONMENT variable not set"
+    exit 1
+fi
+
+log "Starting CloudFormation StackSet deployment process"
+
+# Store the JSON in a temporary file for jq processing
+echo "$ACCOUNTS_AND_REGIONS" > accounts_and_regions.json
+
+STACK_NAME="${ENVIRONMENT}-hotel-planner-python-lambda-layers-stack-set"
+TEMPLATE_FILE="cloudformation-stack-set.yml"
+
 # Create or update StackSet
-OPERATION_ID=$(aws cloudformation update-stack-set \
+log "Creating or updating StackSet: $STACK_NAME"
+OPERATION_ID=$(retry aws cloudformation update-stack-set \
     --stack-set-name "$STACK_NAME" \
     --template-body "file://$TEMPLATE_FILE" \
     --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
@@ -55,7 +93,7 @@ OPERATION_ID=$(aws cloudformation update-stack-set \
     --execution-role-name "github-automations-role-dev" \
     --query 'OperationId' \
     --output text || \
-aws cloudformation create-stack-set \
+retry aws cloudformation create-stack-set \
     --stack-set-name "$STACK_NAME" \
     --template-body "file://$TEMPLATE_FILE" \
     --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
@@ -65,10 +103,10 @@ aws cloudformation create-stack-set \
     --output text)
 
 if [ $? -eq 0 ]; then
-    echo "StackSet operation initiated with Operation ID: $OPERATION_ID"
+    log "StackSet operation initiated with Operation ID: $OPERATION_ID"
     wait_for_operation "$STACK_NAME" "$OPERATION_ID" || exit 1
 else
-    echo "Error: Failed to create or update StackSet"
+    log "Error: Failed to create or update StackSet"
     exit 1
 fi
 
@@ -76,16 +114,16 @@ fi
 while IFS= read -r ACCOUNT; do
     ACCOUNT_ID=$(jq -r ".[\"$ACCOUNT\"].account_id" accounts_and_regions.json)
     while IFS= read -r REGION; do
-        echo "Deploying to Account: $ACCOUNT_ID, Region: $REGION"
+        log "Deploying to Account: $ACCOUNT_ID, Region: $REGION"
         
-        OPERATION_ID=$(aws cloudformation create-stack-instances \
+        OPERATION_ID=$(retry aws cloudformation create-stack-instances \
             --stack-set-name "$STACK_NAME" \
             --regions "$REGION" \
             --accounts "$ACCOUNT_ID" \
             --operation-preferences FailureToleranceCount=0,MaxConcurrentCount=1 \
             --query 'OperationId' \
             --output text || \
-        aws cloudformation update-stack-instances \
+        retry aws cloudformation update-stack-instances \
             --stack-set-name "$STACK_NAME" \
             --regions "$REGION" \
             --accounts "$ACCOUNT_ID" \
@@ -94,17 +132,21 @@ while IFS= read -r ACCOUNT; do
             --output text)
             
         if [ $? -eq 0 ]; then
-            echo "Stack instances operation initiated with Operation ID: $OPERATION_ID"
+            log "Stack instances operation initiated with Operation ID: $OPERATION_ID"
             wait_for_operation "$STACK_NAME" "$OPERATION_ID" || exit 1
         else
-            echo "Error: Failed to deploy stack instances"
+            log "Error: Failed to deploy stack instances"
             exit 1
         fi
     done < <(jq -r ".[\"$ACCOUNT\"].regions[]" accounts_and_regions.json)
 done < <(jq -r 'keys[]' accounts_and_regions.json)
 
-# Clean up temporary file
+# Clean up
+log "Cleaning up temporary files"
 rm accounts_and_regions.json
 
 # Set environment variable to indicate successful deployment
+log "Setting CLOUDFORMATION_DEPLOYED environment variable"
 echo "CLOUDFORMATION_DEPLOYED=true" >> "$GITHUB_ENV"
+
+log "CloudFormation StackSet deployment completed successfully"

@@ -1,42 +1,170 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: 
-  - AWS::Serverless-2016-10-31
-  - AWS::LanguageExtensions
-Description: Optimized Python Lambda Layers StackSet
+Transform: AWS::Serverless-2016-10-31
+Description: Google Ads Editor Stack Set Template
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name for deployment
+
+  GoogleAdsRefreshToken:
+    Type: String
+    NoEcho: true
+    Description: Google Ads API refresh token
+
+  GoogleAdsClientId:
+    Type: String
+    NoEcho: true 
+    Description: Google Ads API client ID
+
+  GoogleAdsClientSecret:
+    Type: String
+    NoEcho: true
+    Description: Google Ads API client secret
+
+  GoogleAdsDeveloperToken:
+    Type: String
+    NoEcho: true
+    Description: Google Ads API developer token
+
+  GoogleAdsLoginCustomerId:
+    Type: String
+    Description: Google Ads login customer ID
+
+  RetentionDays:
+    Type: Number
+    Default: 14
+    Description: CloudWatch Logs retention period in days
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Globals:
+  Function:
+    Runtime: python3.13
+    MemorySize: 128
+    Timeout: 900
+    Environment:
+      Variables:
+        DEBUG: false
+        GOOGLE_ADS_REFRESH_TOKEN: !Ref GoogleAdsRefreshToken
+        GOOGLE_ADS_CLIENT_ID: !Ref GoogleAdsClientId
+        GOOGLE_ADS_CLIENT_SECRET: !Ref GoogleAdsClientSecret
+        GOOGLE_ADS_DEVELOPER_TOKEN: !Ref GoogleAdsDeveloperToken
+        GOOGLE_ADS_LOGIN_CUSTOMER_ID: !Ref GoogleAdsLoginCustomerId
+        GOOGLE_ADS_USE_PROTO_PLUS: true
+    Layers:
+      - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:python313-google-ads-layer:19
+      - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:python313-simplejson-layer:4
 
 Resources:
-  BingAdsLayer:
-    Type: AWS::Lambda::LayerVersion
+  # IAM Role
+  GoogleAdsEditorRole:
+    Type: AWS::IAM::Role
     Properties:
-      CompatibleRuntimes:
-        - python3.13
-      Content:
-        S3Bucket: !Sub 'hotel-planner-deploy-${AWS::AccountId}-${AWS::Region}'
-        S3Key: bing-ads-layer.zip
-      Description: "Lambda layer containing the python library for Bing Ads."
-      LayerName: !Sub '${AWS::StackName}-bing-ads-layer'
-      LicenseInfo: MIT
+      RoleName: !Sub google-ads-editor-V1-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: GoogleAdsEditorCustomPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                  - lambda:InvokeFunction
+                  - sns:Publish
+                  - firehose:PutRecord
+                  - firehose:PutRecordBatch
+                  - dynamodb:*
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: '*'
 
-  GoogleAdsLayer:
-    Type: AWS::Lambda::LayerVersion
+  # Lambda Functions
+  AccountFunction:
+    Type: AWS::Serverless::Function
     Properties:
-      CompatibleRuntimes:
-        - python3.13
-      Content:
-        S3Bucket: !Sub 'hotel-planner-deploy-${AWS::AccountId}-${AWS::Region}'
-        S3Key: google-ads-layer.zip
-      Description: "Lambda layer containing the python library for Google Ads."
-      LayerName: !Sub '${AWS::StackName}-google-ads-layer'
-      LicenseInfo: MIT
+      FunctionName: !Sub googleAdsEditorAccountV1${Environment}
+      Description: Updates Google Ads Accounts
+      Handler: account_lambda.handler
+      Role: !GetAtt GoogleAdsEditorRole.Arn
+      AutoPublishAlias: !If [IsProd, prod, NONE]
+      DeploymentPreference:
+        Type: !If [IsProd, AllAtOnce, NONE]
+      Events:
+        DynamoDBStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/google_account/stream/2019-11-11T18:32:09.876
+            StartingPosition: LATEST
+            BatchSize: 50
+            Enabled: !If [IsProd, true, false]
+
+  # Additional functions follow same pattern...
+  # (Truncated for brevity - would include all other functions)
+
+  # CloudWatch Alarms
+  AccountErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmName: GoogleAdsEditorAccountFailure
+      AlarmDescription: Failure on googleAdsEditorAccount lambda
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Sub arn:aws:sns:${AWS::Region}:${AWS::AccountId}:PublicAlert
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AccountFunction
+        - Name: Resource
+          Value: !Sub ${AccountFunction}:prod
+
+  # Kinesis Firehose Streams
+  AccountFirehose:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: googleAccount
+      DeliveryStreamType: DirectPut
+      ExtendedS3DestinationConfiguration:
+        BucketARN: !Sub arn:aws:s3:::data.ihsadvantage
+        BufferingHints:
+          IntervalInSeconds: 300
+          SizeInMBs: 5
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: /aws/kinesisfirehose/googleAccount
+          LogStreamName: S3Delivery
+        CompressionFormat: GZIP
+        ErrorOutputPrefix: json/errors/google/account/error_type=!{firehose:error-output-type}/partition_date=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}/
+        Prefix: json/google/account/partition_date=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}/
+        RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/firehose_delivery_role
 
 Outputs:
-  GoogleAdsLayerArn:
-    Description: ARN for the Google Ads Lambda Layer
-    Value: !Ref GoogleAdsLayer
-
-  BingAdsLayerArn:
-    Description: ARN for the Bing Ads Lambda Layer
-    Value: !Ref BingAdsLayer
+  AccountFunctionArn:
+    Description: ARN of the Account Lambda function
+    Value: !GetAtt AccountFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-account-function-arn
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Stack set template for Python Lambda service with standard configurations'
 

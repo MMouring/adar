@@ -109,7 +109,7 @@ while IFS= read -r ACCOUNT; do
         OPERATION_ID=$(retry aws cloudformation update-stack-set \
             --stack-set-name "$STACK_NAME" \
             --template-body "file://$TEMPLATE_FILE" \
-            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_IAM \
             --administration-role-arn "$AWS_STACK_ADMIN_ARN" \
             --parameters "[{\"ParameterKey\":\"stage\",\"ParameterValue\":\"$ENVIRONMENT\"}]" \
             --execution-role-name "AWSCloudFormationStackSetExecutionRole" \
@@ -124,7 +124,7 @@ while IFS= read -r ACCOUNT; do
             OPERATION_ID=$(retry aws cloudformation create-stack-set \
                 --stack-set-name "$STACK_NAME" \
                 --template-body "file://$TEMPLATE_FILE" \
-                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_IAM \
                 --administration-role-arn "$AWS_STACK_ADMIN_ARN" \
                 --parameters "[{\"ParameterKey\":\"stage\",\"ParameterValue\":\"$ENVIRONMENT\"}]" \
                 --execution-role-name "AWSCloudFormationStackSetExecutionRole" \

@@ -1,7 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: 
-  - AWS::Serverless-2016-10-31
-  - AWS::LanguageExtensions
+Transform: AWS::LanguageExtensions
 Description: Google Ads Editor StackSet
 
 Parameters:
@@ -312,13 +310,15 @@ Resources:
       RoleName: !Sub google-ads-editor-V1-
 
   GoogleAdsEditorAdPerformanceLambda:
-    Type: AWS::Serverless::Function
+    Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub googleAdsEditorAdPerformanceV1
       Description: Google Ad Performance Report
       Handler: ad_performance_repot_lambda.handler
       Runtime: python3.13
-      CodeUri: ./src
+      Code:
+        S3Bucket: your-deployment-bucket
+        S3Key: google-ads-editor/src.zip
       MemorySize: 4096
       Role:
         Fn::GetAtt:

@@ -20,26 +20,23 @@ retry() {
     local max_attempts=3
     local delay=5
     local attempt=1
-    
-    while true; do
-        "$@" && break || {
-            if [[ $attempt -lt $max_attempts ]]; then
-                log "Command failed. Attempt $attempt/$max_attempts. Retrying in $delay seconds..."
-                sleep $delay
-                ((attempt++))
-            else
-                log "Command failed after $max_attempts attempts. Exiting..."
-                return 1
-            fi
-        }
+
+    while (( attempt <= max_attempts )); do
+        "$@" && return 0
+        log "Command failed. Attempt $attempt/$max_attempts. Retrying in $delay seconds..."
+        sleep $delay
+        ((attempt++))
     done
+
+    log "Command failed after $max_attempts attempts."
+    return 1
 }
 
 # Function to wait for stack set operation to complete
 wait_for_operation() {
     local stack_set_name=$1
     local operation_id=$2
-    
+
     while true; do
         OPERATION_INFO=$(aws cloudformation describe-stack-set-operation \
             --stack-set-name "$stack_set_name" \
@@ -55,7 +52,6 @@ wait_for_operation() {
             log "Detailed operation info:"
             echo "$OPERATION_INFO" | jq '.'
             
-            # Get specific error details from stack instances if available
             INSTANCES_INFO=$(aws cloudformation list-stack-set-operation-results \
                 --stack-set-name "$stack_set_name" \
                 --operation-id "$operation_id")
@@ -69,75 +65,126 @@ wait_for_operation() {
     done
 }
 
-# Ensure required environment variables are set
-if [ -z "$ENVIRONMENT" ]; then
-    log "Error: ENVIRONMENT variable not set"
-    exit 1
-fi
-
 log "Starting CloudFormation StackSet deployment process"
 
 # Store the JSON in a temporary file for jq processing
 echo "$ACCOUNTS_AND_REGIONS" > accounts_and_regions.json
 
-STACK_NAME="${ENVIRONMENT}-hotel-planner-python-lambda-layers-stack-set"
+# Modify the stack set name for deploys
+STACK_NAME="hotel-planner-python-lambda-layers-stack-set"
 TEMPLATE_FILE="cloudformation-stack-set.yml"
 
-# Create or update StackSet
-log "Creating or updating StackSet: $STACK_NAME"
-OPERATION_ID=$(retry aws cloudformation update-stack-set \
-    --stack-set-name "$STACK_NAME" \
-    --template-body "file://$TEMPLATE_FILE" \
-    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-    --administration-role-arn "$AWS_DEPLOYMENT_ROLE_ARN" \
-    --execution-role-name "github-automations-role-dev" \
-    --query 'OperationId' \
-    --output text || \
-retry aws cloudformation create-stack-set \
-    --stack-set-name "$STACK_NAME" \
-    --template-body "file://$TEMPLATE_FILE" \
-    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-    --administration-role-arn "$AWS_DEPLOYMENT_ROLE_ARN" \
-    --execution-role-name "github-automations-role-dev" \
-    --query 'OperationId' \
-    --output text)
+# Assume StackSet Administration Role before CloudFormation operations
+log "Assuming StackSet Administration Role"
+ASSUMED_ROLE_CREDENTIALS=$(aws sts assume-role \
+    --role-arn "$AWS_STACK_ADMIN_ARN" \
+    --role-session-name "StackSetDeploymentSession")
 
-if [ $? -eq 0 ]; then
-    log "StackSet operation initiated with Operation ID: $OPERATION_ID"
-    wait_for_operation "$STACK_NAME" "$OPERATION_ID" || exit 1
-else
-    log "Error: Failed to create or update StackSet"
-    exit 1
-fi
+# Extract and export temporary credentials
+export AWS_ACCESS_KEY_ID=$(echo "$ASSUMED_ROLE_CREDENTIALS" | jq -r '.Credentials.AccessKeyId')
+export AWS_SECRET_ACCESS_KEY=$(echo "$ASSUMED_ROLE_CREDENTIALS" | jq -r '.Credentials.SecretAccessKey')
+export AWS_SESSION_TOKEN=$(echo "$ASSUMED_ROLE_CREDENTIALS" | jq -r '.Credentials.SessionToken')
+
+# Add a cleanup trap to unset credentials after script completion
+cleanup() {
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SECRET_ACCESS_KEY
+    unset AWS_SESSION_TOKEN
+}
+trap cleanup EXIT
+
+OPERATION_ID=""
+update_error=0
+
+
+# Deploy to multiple accounts and regions
+while IFS= read -r ACCOUNT; do
+    REGIONS=""
+    ACCOUNT_ID=$(jq -r ".[\"$ACCOUNT\"].account_id" accounts_and_regions.json)
+    while IFS= read -r REGION; do
+        log "Deploying to Account: $ACCOUNT_ID, Region: $REGION"
+
+        # Create or update StackSet
+        log "Creating or updating StackSet: $STACK_NAME"
+        OPERATION_ID=$(retry aws cloudformation update-stack-set \
+            --stack-set-name "$STACK_NAME" \
+            --template-body "file://$TEMPLATE_FILE" \
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --administration-role-arn "$AWS_STACK_ADMIN_ARN" \
+            --parameters "[{\"ParameterKey\":\"stage\",\"ParameterValue\":\"$ENVIRONMENT\"}]" \
+            --execution-role-name "AWSCloudFormationStackSetExecutionRole" \
+            --accounts "$ACCOUNT_ID" \
+            --regions "$REGION" \
+            --query 'OperationId' \
+            --output text)
+
+        # Check if OPERATION_ID is valid after update
+        if [[ -z "$OPERATION_ID" ]]; then
+            log "Update failed, attempting to create StackSet: $STACK_NAME"
+            OPERATION_ID=$(retry aws cloudformation create-stack-set \
+                --stack-set-name "$STACK_NAME" \
+                --template-body "file://$TEMPLATE_FILE" \
+                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+                --administration-role-arn "$AWS_STACK_ADMIN_ARN" \
+                --parameters "[{\"ParameterKey\":\"stage\",\"ParameterValue\":\"$ENVIRONMENT\"}]" \
+                --execution-role-name "AWSCloudFormationStackSetExecutionRole" \
+                --accounts "$ACCOUNT_ID" \
+                --regions "$REGION" \
+                --query 'OperationId' \
+                --output text)
+            
+            # Check if OPERATION_ID is valid after create
+            if [[ -z "$OPERATION_ID" ]]; then
+                log "Failed to create StackSet. Please check the template and parameters."
+                exit 1
+            fi
+        fi
+
+        # Validate OPERATION_ID again
+        if [[ -z "$OPERATION_ID" ]]; then
+            log "Error: Unable to retrieve a valid Operation ID."
+            exit 1
+        fi
+
+        log "StackSet operation initiated with Operation ID: $OPERATION_ID"
+        wait_for_operation "$STACK_NAME" "$OPERATION_ID" || {
+            log "StackSet operation failed. Exiting."
+            exit 1
+        }
+    done < <(jq -r ".[\"$ACCOUNT\"].regions[]" accounts_and_regions.json)
+done < <(jq -r 'keys[]' accounts_and_regions.json)
 
 # Deploy to multiple accounts and regions
 while IFS= read -r ACCOUNT; do
     ACCOUNT_ID=$(jq -r ".[\"$ACCOUNT\"].account_id" accounts_and_regions.json)
     while IFS= read -r REGION; do
         log "Deploying to Account: $ACCOUNT_ID, Region: $REGION"
-        
+
         OPERATION_ID=$(retry aws cloudformation create-stack-instances \
             --stack-set-name "$STACK_NAME" \
             --regions "$REGION" \
             --accounts "$ACCOUNT_ID" \
             --operation-preferences FailureToleranceCount=0,MaxConcurrentCount=1 \
             --query 'OperationId' \
-            --output text || \
-        retry aws cloudformation update-stack-instances \
-            --stack-set-name "$STACK_NAME" \
-            --regions "$REGION" \
-            --accounts "$ACCOUNT_ID" \
-            --operation-preferences FailureToleranceCount=0,MaxConcurrentCount=1 \
-            --query 'OperationId' \
             --output text)
-            
-        if [ $? -eq 0 ]; then
-            log "Stack instances operation initiated with Operation ID: $OPERATION_ID"
-            wait_for_operation "$STACK_NAME" "$OPERATION_ID" || exit 1
-        else
-            log "Error: Failed to deploy stack instances"
-            exit 1
+
+        if [[ $? -ne 0 || -z "$OPERATION_ID" ]]; then
+            log "Update failed, attempting to update StackSet instances"
+            OPERATION_ID=$(retry aws cloudformation update-stack-instances \
+                --stack-set-name "$STACK_NAME" \
+                --regions "$REGION" \
+                --accounts "$ACCOUNT_ID" \
+                --operation-preferences FailureToleranceCount=0,MaxConcurrentCount=1 \
+                --query 'OperationId' \
+                --output text)
+            if [[ $? -ne 0 || -z "$OPERATION_ID" ]]; then
+                log "Error: Failed to deploy stack instances"
+                exit 1
+            fi
         fi
+
+        log "Stack instances operation initiated with Operation ID: $OPERATION_ID"
+        wait_for_operation "$STACK_NAME" "$OPERATION_ID" || exit 1
     done < <(jq -r ".[\"$ACCOUNT\"].regions[]" accounts_and_regions.json)
 done < <(jq -r 'keys[]' accounts_and_regions.json)
 
@@ -150,3 +197,4 @@ log "Setting CLOUDFORMATION_DEPLOYED environment variable"
 echo "CLOUDFORMATION_DEPLOYED=true" >> "$GITHUB_ENV"
 
 log "CloudFormation StackSet deployment completed successfully"
+

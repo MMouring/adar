@@ -4,6 +4,11 @@ Transform:
   - AWS::LanguageExtensions
 Description: Google Ads Editor StackSet
 
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: google-ads-editor
+    Description: Google Ads Editor Lambda Functions
+
 Parameters:
   debug:
     Type: String

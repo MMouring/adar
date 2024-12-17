@@ -106,10 +106,16 @@ while IFS= read -r ACCOUNT; do
 
         # Create or update StackSet
         log "Creating or updating StackSet: $STACK_NAME"
+        # Process SAM template first
+        sam package \
+            --template-file "$TEMPLATE_FILE" \
+            --output-template-file "${TEMPLATE_FILE}.packaged" \
+            --s3-bucket "lambda-layer-artifacts-${ACCOUNT_ID}"
+
         OPERATION_ID=$(retry aws cloudformation update-stack-set \
             --stack-set-name "$STACK_NAME" \
-            --template-body "file://$TEMPLATE_FILE" \
-            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_IAM \
+            --template-body "file://${TEMPLATE_FILE}.packaged" \
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
             --administration-role-arn "$AWS_STACK_ADMIN_ARN" \
             --parameters "[{\"ParameterKey\":\"stage\",\"ParameterValue\":\"$ENVIRONMENT\"}]" \
             --execution-role-name "AWSCloudFormationStackSetExecutionRole" \
@@ -123,8 +129,8 @@ while IFS= read -r ACCOUNT; do
             log "Update failed, attempting to create StackSet: $STACK_NAME"
             OPERATION_ID=$(retry aws cloudformation create-stack-set \
                 --stack-set-name "$STACK_NAME" \
-                --template-body "file://$TEMPLATE_FILE" \
-                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_IAM \
+                --template-body "file://${TEMPLATE_FILE}.packaged" \
+                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
                 --administration-role-arn "$AWS_STACK_ADMIN_ARN" \
                 --parameters "[{\"ParameterKey\":\"stage\",\"ParameterValue\":\"$ENVIRONMENT\"}]" \
                 --execution-role-name "AWSCloudFormationStackSetExecutionRole" \

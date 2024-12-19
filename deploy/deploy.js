@@ -227,39 +227,50 @@ async function deploy() {
     if (err.name === 'NameAlreadyExistsException') {
       console.log('Stack set already exists, proceeding with update')
 
-      // Update only the stack set template/configuration without instances
-      const updateResponse = await cfnWithRole.send(
-        new UpdateStackSetCommand({
-          StackSetName: STACK_SET_NAME,
-          TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
-          Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-          Parameters: [
-            {
-              ParameterKey: 'stage',
-              ParameterValue: ENV
-            }
-          ],
-          Accounts: accounts,
-          Regions: regions,
-          OperationPreferences: {
-            FailureTolerancePercentage: 0,
-            MaxConcurrentPercentage: 100,
-            RegionConcurrencyType: 'PARALLEL'
-          },
-          PermissionModel: 'SELF_MANAGED',
-          AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
-          ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
-          OperationId: `UpdateTemplate-${Date.now()}`,
-          CallAs: 'SELF'
-        })
-      )
+      try {
+        // Update only the stack set template/configuration without instances
+        const updateResponse = await cfnWithRole.send(
+          new UpdateStackSetCommand({
+            StackSetName: STACK_SET_NAME,
+            TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
+            Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
+            Parameters: [
+              {
+                ParameterKey: 'stage',
+                ParameterValue: ENV
+              }
+            ],
+            Accounts: accounts,
+            Regions: regions,
+            OperationPreferences: {
+              FailureTolerancePercentage: 0,
+              MaxConcurrentPercentage: 100,
+              RegionConcurrencyType: 'PARALLEL'
+            },
+            PermissionModel: 'SELF_MANAGED',
+            AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
+            ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
+            OperationId: `UpdateTemplate-${Date.now()}`,
+            CallAs: 'SELF'
+          })
+        )
 
-      await waitForStackSetOperation(
-        cfnWithRole,
-        updateResponse.OperationId,
-        STACK_SET_NAME
-      )
-      console.log('Stack set template updated successfully')
+        await waitForStackSetOperation(
+          cfnWithRole,
+          updateResponse.OperationId,
+          STACK_SET_NAME
+        )
+        console.log('Stack set template updated successfully')
+      } catch (updateErr) {
+        // Check for StackInstanceNotFoundException which indicates no instances exist and we need to create them
+        if (updateErr.name === 'StackInstanceNotFoundException') {
+          console.log('No stack instances found, proceeding with creation')
+          // Continue with creating stack instances
+        } else {
+          console.error('Error updating stack set:', updateErr)
+          throw updateErr
+        }
+      }
     } else {
       console.error('Error creating stack set:', err)
       throw err
@@ -278,6 +289,12 @@ async function deploy() {
         MaxConcurrentPercentage: 100,
         RegionConcurrencyType: 'PARALLEL'
       },
+      ParameterOverrides: [
+        {
+          ParameterKey: 'stage',
+          ParameterValue: ENV
+        }
+      ],
       CallAs: 'SELF'
     }
 
@@ -295,7 +312,9 @@ async function deploy() {
       console.log('Stack instances created successfully')
     } catch (createErr) {
       if (createErr.name === 'OperationInProgressException') {
-        console.log('Another operation is in progress, waiting for completion...')
+        console.log(
+          'Another operation is in progress, waiting for completion...'
+        )
         // Wait for 30 seconds before considering it a failure
         await new Promise(resolve => setTimeout(resolve, 30000))
         throw new Error('Operation in progress, please try again later')
@@ -329,7 +348,7 @@ const command = process.argv[2]
 if (command === 'package') {
   packageAndUpload()
 } else if (command === 'deploy') {
-  ;(async () => {
+  ; (async () => {
     try {
       await packageAndUpload()
       await deploy()

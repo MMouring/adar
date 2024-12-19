@@ -229,9 +229,6 @@ async function deploy() {
       StackSetName: STACK_SET_NAME,
       Accounts: accounts,
       Regions: regions,
-      DeploymentTargets: {
-        Accounts: accounts
-      },
       OperationPreferences: {
         FailureTolerancePercentage: 0,
         MaxConcurrentPercentage: 100

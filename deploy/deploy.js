@@ -165,12 +165,10 @@ async function deploy() {
   // Create new CloudFormation client with assumed role credentials
   const cfnWithRole = new CloudFormationClient(config);
   
-  // Try to create the stack set first
+  // First create/update the stack set definition (without instances)
   try {
     const createResponse = await cfnWithRole.send(new CreateStackSetCommand({
       StackSetName: STACK_SET_NAME,
-      Accounts: accounts,
-      Regions: regions,
       TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
       Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
       PermissionModel: 'SELF_MANAGED',
@@ -189,14 +187,39 @@ async function deploy() {
   } catch (err) {
     if (err.name === 'NameAlreadyExistsException') {
       console.log('Stack set already exists, proceeding with update');
+      
+      // Update the stack set template/configuration
+      const updateResponse = await cfnWithRole.send(new UpdateStackSetCommand({
+        StackSetName: STACK_SET_NAME,
+        TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
+        Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
+        Parameters: [
+          {
+            ParameterKey: 'stage',
+            ParameterValue: ENV
+          }
+        ],
+        OperationPreferences: {
+          FailureTolerancePercentage: 0,
+          MaxConcurrentPercentage: 100
+        },
+        PermissionModel: 'SELF_MANAGED',
+        AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
+        ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
+        OperationId: `UpdateTemplate-${Date.now()}`,
+        CallAs: 'SELF'
+      }));
+      
+      await waitForStackSetOperation(cfnWithRole, updateResponse.OperationId, STACK_SET_NAME);
+      console.log('Stack set template updated successfully');
     } else {
       console.error('Error creating stack set:', err);
       throw err;
     }
   }
 
-  // Update the stack set and create/update instances
-  const updateResponse = await cfnWithRole.send(new UpdateStackSetCommand({
+  // Now create/update stack instances in target accounts
+  const updateInstancesResponse = await cfnWithRole.send(new UpdateStackSetCommand({
     StackSetName: STACK_SET_NAME,
     Accounts: accounts,
     Regions: regions,
@@ -215,7 +238,7 @@ async function deploy() {
     PermissionModel: 'SELF_MANAGED',
     AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
     ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
-    OperationId: `Update-${Date.now()}`,
+    OperationId: `UpdateInstances-${Date.now()}`,
     CallAs: 'SELF'
   }));
   

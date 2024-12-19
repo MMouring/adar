@@ -133,12 +133,30 @@ async function waitForStackSetOperation(
         JSON.stringify(operation.StackSetOperation, null, 2)
       )
 
-      // Check for resource existence conflicts
+      // Check for various resource conflicts
       if (operation.StackSetOperation.StatusReason &&
-          operation.StackSetOperation.StatusReason.includes('already exists')) {
-        console.log('Detected existing resource conflict, continuing with deployment...')
-        // Don't throw an error, just continue with the deployment
-        return 'CONTINUE'
+          (operation.StackSetOperation.StatusReason.includes('already exists') ||
+           operation.StackSetOperation.StatusReason.includes('ResourceStatusReason'))) {
+        console.log('Detected existing resource conflict, checking details...');
+        
+        const results = await cfnWithRole.send(
+          new ListStackSetOperationResultsCommand({
+            StackSetName: stackSetName,
+            OperationId: operationId
+          })
+        );
+
+        // Log the specific resources causing conflicts
+        if (results.Summaries) {
+          for (const summary of results.Summaries) {
+            if (summary.Status === 'FAILED') {
+              console.log(`Resource conflict in ${summary.Region}: ${summary.StatusReason}`);
+            }
+          }
+        }
+
+        console.log('Continuing deployment with existing resources...');
+        return 'CONTINUE';
       }
 
       // Get detailed results for failed instances
@@ -337,9 +355,13 @@ async function deploy() {
             OperationId: `Update-${Date.now()}`,
             OperationPreferences: {
               ...instanceParams.OperationPreferences,
-              FailureTolerancePercentage: 10, // Allow some failures
+              FailureTolerancePercentage: 100, // Allow all failures for existing resources
+              MaxConcurrentPercentage: 100,
               RegionOrder: ['us-east-1'], // Prioritize primary region
-            }
+            },
+            // Use RETAIN as the default deletion policy
+            CallAs: 'SELF',
+            Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND']
           })
         )
         await waitForStackSetOperation(

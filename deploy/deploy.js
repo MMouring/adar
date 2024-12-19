@@ -136,8 +136,9 @@ async function waitForStackSetOperation(
       // Check for resource existence conflicts
       if (operation.StackSetOperation.StatusReason &&
           operation.StackSetOperation.StatusReason.includes('already exists')) {
-        console.log('Detected existing resource conflict, attempting to continue...')
-        return // Continue deployment despite resource existence error
+        console.log('Detected existing resource conflict, continuing with deployment...')
+        // Don't throw an error, just continue with the deployment
+        return 'CONTINUE'
       }
 
       // Get detailed results for failed instances
@@ -262,11 +263,14 @@ async function deploy() {
           })
         )
 
-        await waitForStackSetOperation(
+        const result = await waitForStackSetOperation(
           cfnWithRole,
           updateResponse.OperationId,
           STACK_SET_NAME
         )
+        if (result === 'CONTINUE') {
+          console.log('Continuing deployment after resource conflict...')
+        }
         console.log('Stack set template updated successfully')
       } catch (updateErr) {
         // Check for StackInstanceNotFoundException which indicates no instances exist and we need to create them

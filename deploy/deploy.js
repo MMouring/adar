@@ -231,7 +231,8 @@ async function deploy() {
       Regions: regions,
       OperationPreferences: {
         FailureTolerancePercentage: 0,
-        MaxConcurrentPercentage: 100
+        MaxConcurrentPercentage: 100,
+        RegionConcurrencyType: 'PARALLEL'
       },
       CallAs: 'SELF'
     };
@@ -241,9 +242,11 @@ async function deploy() {
     
     while (retryCount < maxRetries) {
       try {
+        // Always attempt to create new stack instances
         const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand(instanceParams));
-        console.log('Stack instance creation/update initiated');
+        console.log('Stack instance creation initiated');
         await waitForStackSetOperation(cfnWithRole, createInstancesResponse.OperationId, STACK_SET_NAME);
+        console.log('Stack instances created/updated successfully');
         break;
       } catch (instanceErr) {
         if (instanceErr.name === 'OperationInProgressException') {
@@ -255,10 +258,8 @@ async function deploy() {
           }
           continue;
         }
-        if (instanceErr.name === 'StackInstanceNotFoundException') {
-          console.log('Stack instance not found, proceeding with creation');
-          break;
-        }
+        // If we get any other error, log it and throw
+        console.error('Error creating stack instances:', instanceErr);
         throw instanceErr;
       }
     }

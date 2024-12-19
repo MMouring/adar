@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Mappings:
+  Layers:
+    stage:
+      GoogleAdsLayer: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:4
+      BingAdsLayer: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:bing-ads-layer:4
+    prod:
+      GoogleAdsLayer: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:2
+      BingAdsLayer: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:bing-ads-layer:2
+    dev:
+      GoogleAdsLayer: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:1
+      BingAdsLayer: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:bing-ads-layer:1
+
+Resources:
+  GoogleAdsEditorFeedItemLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub googleAdsEditorFeedItemV1
+      Description: Updates Google Ads Feed Items
+      Handler: feed_item_lambda.handler
+      Runtime: python3.13
+      CodeUri: ./src
+      MemorySize: 128
+      Role:
+        Fn::GetAtt:
+          - GoogleAdsEditorRole
+          - Arn
+      Timeout: 900
+      Environment:
+        Variables:
+          DEBUG: !Sub ${debug}
+          GOOGLE_ADS_REFRESH_TOKEN: !Sub ${googleAdsRefreshToken}
+          GOOGLE_ADS_CLIENT_ID: !Sub ${googleAdsClientId}
+          GOOGLE_ADS_CLIENT_SECRET: !Sub ${googleAdsClientSecret}
+          GOOGLE_ADS_DEVELOPER_TOKEN: !Sub ${googleAdsDeveloperToken}
+          GOOGLE_ADS_LOGIN_CUSTOMER_ID: !Sub ${googleAdsLoginCustomerId}
+          GOOGLE_ADS_USE_PROTO_PLUS: true
+      Layers:
+        - !FindInMap [Layers, !Ref stage, GoogleAdsLayer]
+        - !FindInMap [Layers, !Ref stage, BingAdsLayer]

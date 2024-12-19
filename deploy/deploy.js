@@ -167,7 +167,15 @@ const command = process.argv[2];
 if (command === 'package') {
   packageAndUpload();
 } else if (command === 'deploy') {
-  deploy();
+  (async () => {
+    try {
+      await packageAndUpload();
+      await deploy();
+    } catch (error) {
+      console.error('Deployment failed:', error);
+      process.exit(1);
+    }
+  })();
 } else {
   console.error('Unknown command. Use "package" or "deploy"');
   process.exit(1);

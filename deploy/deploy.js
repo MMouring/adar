@@ -7,11 +7,19 @@ const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 
 const {
-  npm_package_config_env: ENV = 'dev',
-  npm_package_config_accounts: ACCOUNTS = '',
-  npm_package_config_regions: REGIONS = '',
+  npm_package_config_env: ENV,
+  npm_package_config_accounts: ACCOUNTS,
+  npm_package_config_regions: REGIONS,
   npm_package_config_stackSetName: STACK_SET_NAME
 } = process.env;
+
+if (!ENV || !ACCOUNTS || !REGIONS) {
+  console.error('Required environment variables not set:');
+  console.error('- npm_package_config_env: Target environment');
+  console.error('- npm_package_config_accounts: Comma-separated list of AWS accounts');
+  console.error('- npm_package_config_regions: Comma-separated list of AWS regions');
+  process.exit(1);
+}
 
 async function packageAndUpload() {
   // First package Python layers

@@ -4,9 +4,6 @@
   "description": "Multi-account, multi-region Lambda deployment",
   "main": "deploy/deploy.js",
   "config": {
-    "env": "dev",
-    "accounts": "123456789012",
-    "regions": "us-east-1",
     "stackSetName": "lambda-stack-set"
   },
   "scripts": {

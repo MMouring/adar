@@ -41,7 +41,14 @@ async function deploy() {
   } catch (err) {
     if (err.name === 'StackSetNotFoundException') {
       await cfn.send(new CreateStackSetCommand({
-        // Similar parameters as UpdateStackSetCommand
+        StackSetName: STACK_SET_NAME,
+        Accounts: accounts,
+        Regions: regions,
+        TemplateURL: `https://s3.amazonaws.com/lambda-stack-sets/${STACK_SET_NAME}.yml`,
+        Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
+        AdministrationRoleARN: `arn:aws:iam::${accounts[0]}:role/AWSCloudFormationStackSetAdministrationRole${ENV}`,
+        ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
+        PermissionModel: 'SELF_MANAGED'
       }));
     } else {
       throw err;

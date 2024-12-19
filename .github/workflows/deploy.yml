@@ -23,6 +23,8 @@ on:
 # Environment variables used across jobs
 env:
   DEFAULT_REGION: us-east-1
+  NODE_ENV: production
+  AWS_MAX_ATTEMPTS: 3
 
 # Required permissions for OIDC authentication
 permissions:
@@ -52,7 +54,8 @@ jobs:
           aws-region: ${{ env.DEFAULT_REGION }}
           
       - name: Install project dependencies
-        run: npm ci
+        run: npm ci --no-audit
+        continue-on-error: false
         
       - name: Run test suite
         run: npm test
@@ -60,7 +63,8 @@ jobs:
           npm_config_skiptests: ${{ github.event.inputs.environment == 'prod' && 'false' || 'true' }}
           
       - name: Deploy CloudFormation stack
-        run: npm run deploy
+        run: |
+          npm run deploy || exit 1
         env:
           npm_package_config_env: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
           npm_package_config_accounts: ${{ vars.TARGET_ACCOUNTS }}

@@ -225,9 +225,7 @@ async function deploy() {
     const updateInstancesResponse = await cfnWithRole.send(new UpdateStackSetCommand({
       StackSetName: STACK_SET_NAME,
       TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
-      DeploymentTargets: {
-        Accounts: accounts
-      },
+      Accounts: accounts,
       Regions: regions,
       OperationPreferences: {
         FailureTolerancePercentage: 0,
@@ -247,9 +245,7 @@ async function deploy() {
       // Create new stack instances
       const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand({
         StackSetName: STACK_SET_NAME,
-        DeploymentTargets: {
-          Accounts: accounts
-        },
+        Accounts: accounts,
         Regions: regions,
         OperationPreferences: {
           FailureTolerancePercentage: 0,

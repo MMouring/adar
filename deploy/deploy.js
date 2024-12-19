@@ -10,14 +10,16 @@ const {
   npm_package_config_env: ENV,
   npm_package_config_accounts: ACCOUNTS,
   npm_package_config_regions: REGIONS,
-  npm_package_config_stackSetName: STACK_SET_NAME
+  npm_package_config_stackSetName: STACK_SET_NAME,
+  AWS_STACK_ADMIN_ARN
 } = process.env;
 
-if (!ENV || !ACCOUNTS || !REGIONS) {
+if (!ENV || !ACCOUNTS || !REGIONS || !AWS_STACK_ADMIN_ARN) {
   console.error('Required environment variables not set:');
   console.error('- npm_package_config_env: Target environment');
   console.error('- npm_package_config_accounts: Comma-separated list of AWS accounts');
   console.error('- npm_package_config_regions: Comma-separated list of AWS regions');
+  console.error('- AWS_STACK_ADMIN_ARN: ARN of the StackSet Administration Role');
   process.exit(1);
 }
 
@@ -97,15 +99,28 @@ async function deploy() {
   const accounts = ACCOUNTS.split(',');
   const regions = REGIONS.split(',');
   
-  // Assume deployment role
+  // Assume StackSet Administration Role
+  console.log('Assuming StackSet Administration Role');
   const credentials = await sts.send(new AssumeRoleCommand({
-    RoleArn: `arn:aws:iam::${accounts[0]}:role/AWSCloudFormationStackSetAdministrationRole${ENV}`,
-    RoleSessionName: STACK_SET_NAME
+    RoleArn: AWS_STACK_ADMIN_ARN,
+    RoleSessionName: 'StackSetDeploymentSession'
   }));
+
+  // Configure AWS SDK with temporary credentials
+  const config = {
+    credentials: {
+      accessKeyId: credentials.Credentials.AccessKeyId,
+      secretAccessKey: credentials.Credentials.SecretAccessKey,
+      sessionToken: credentials.Credentials.SessionToken
+    }
+  };
+  
+  // Create new CloudFormation client with assumed role credentials
+  const cfnWithRole = new CloudFormationClient(config);
   
   // Try to create the stack set first
   try {
-    const createResponse = await cfn.send(new CreateStackSetCommand({
+    const createResponse = await cfnWithRole.send(new CreateStackSetCommand({
       StackSetName: STACK_SET_NAME,
       Accounts: accounts,
       Regions: regions,
@@ -128,7 +143,7 @@ async function deploy() {
   }
 
   // Always update the stack set to ensure instances are created/updated
-  const updateResponse = await cfn.send(new UpdateStackSetCommand({
+  const updateResponse = await cfnWithRole.send(new UpdateStackSetCommand({
     StackSetName: STACK_SET_NAME,
     Accounts: accounts,
     Regions: regions,

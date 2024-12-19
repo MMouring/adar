@@ -1,7 +1,8 @@
 const { 
   CloudFormationClient, 
   UpdateStackSetCommand, 
-  CreateStackSetCommand, 
+  CreateStackSetCommand,
+  CreateStackInstancesCommand,
   DescribeStackSetOperationCommand,
   ListStackSetOperationResultsCommand 
 } = require('@aws-sdk/client-cloudformation');
@@ -218,23 +219,49 @@ async function deploy() {
     }
   }
 
-  // Now create/update stack instances in target accounts
-  const updateInstancesResponse = await cfnWithRole.send(new UpdateStackSetCommand({
-    StackSetName: STACK_SET_NAME,
-    DeploymentTargets: {
-      Accounts: accounts
-    },
-    Regions: regions,
-    OperationPreferences: {
-      FailureTolerancePercentage: 0,
-      MaxConcurrentPercentage: 100
-    },
-    OperationId: `UpdateInstances-${Date.now()}`,
-    CallAs: 'SELF'
-  }));
-  
-  console.log('Stack instance update initiated');
-  await waitForStackSetOperation(cfnWithRole, updateInstancesResponse.OperationId, STACK_SET_NAME);
+  // Create or update stack instances in target accounts
+  try {
+    // First try to update existing instances
+    const updateInstancesResponse = await cfnWithRole.send(new UpdateStackSetCommand({
+      StackSetName: STACK_SET_NAME,
+      DeploymentTargets: {
+        Accounts: accounts
+      },
+      Regions: regions,
+      OperationPreferences: {
+        FailureTolerancePercentage: 0,
+        MaxConcurrentPercentage: 100
+      },
+      OperationId: `UpdateInstances-${Date.now()}`,
+      CallAs: 'SELF'
+    }));
+    
+    console.log('Stack instance update initiated');
+    await waitForStackSetOperation(cfnWithRole, updateInstancesResponse.OperationId, STACK_SET_NAME);
+  } catch (err) {
+    if (err.name === 'StackInstanceNotFoundException') {
+      console.log('No stack instances found, creating new instances...');
+      // Create new stack instances
+      const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand({
+        StackSetName: STACK_SET_NAME,
+        DeploymentTargets: {
+          Accounts: accounts
+        },
+        Regions: regions,
+        OperationPreferences: {
+          FailureTolerancePercentage: 0,
+          MaxConcurrentPercentage: 100
+        },
+        OperationId: `CreateInstances-${Date.now()}`,
+        CallAs: 'SELF'
+      }));
+      
+      console.log('Stack instance creation initiated');
+      await waitForStackSetOperation(cfnWithRole, createInstancesResponse.OperationId, STACK_SET_NAME);
+    } else {
+      throw err;
+    }
+  }
   console.log('Stack set updated successfully');
 }
 

@@ -26,8 +26,24 @@ if (!ENV || !ACCOUNTS || !REGIONS || !AWS_STACK_ADMIN_ARN) {
 async function packageAndUpload() {
   // First package Python layers
   await packagePythonLayers();
+
+  // Assume StackSet Administration Role first
+  const sts = new STSClient();
+  console.log('Assuming StackSet Administration Role for S3 operations');
+  const credentials = await sts.send(new AssumeRoleCommand({
+    RoleArn: AWS_STACK_ADMIN_ARN,
+    RoleSessionName: 'StackSetDeploymentSession'
+  }));
+
+  // Configure S3 client with assumed role credentials
+  const s3 = new S3Client({
+    credentials: {
+      accessKeyId: credentials.Credentials.AccessKeyId,
+      secretAccessKey: credentials.Credentials.SecretAccessKey,
+      sessionToken: credentials.Credentials.SessionToken
+    }
+  });
   
-  const s3 = new S3Client();
   const accounts = ACCOUNTS.split(',');
   const regions = REGIONS.split(',');
   

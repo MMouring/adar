@@ -127,7 +127,7 @@ async function deploy() {
       TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
       Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
       ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
-      PermissionModel: 'SELF_MANAGED',
+      PermissionModel: 'SERVICE_MANAGED',
       CallAs: 'DELEGATED_ADMIN'
     }));
     console.log('Stack set creation initiated');
@@ -149,7 +149,7 @@ async function deploy() {
     Regions: regions,
     TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
     Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-    ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
+    PermissionModel: 'SERVICE_MANAGED',
     CallAs: 'DELEGATED_ADMIN'
   }));
   

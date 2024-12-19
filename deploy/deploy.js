@@ -100,7 +100,14 @@ async function waitForStackSetOperation(cfnWithRole, operationId, stackSetName) 
     }
     
     if (status === 'FAILED' || status === 'STOPPED') {
-      throw new Error(`Stack set operation ${operationId} ${status}`);
+      // Get detailed error information
+      console.error('Stack set operation details:', JSON.stringify(operation.StackSetOperation, null, 2));
+      
+      if (operation.StackSetOperation.StatusReason) {
+        console.error('Failure reason:', operation.StackSetOperation.StatusReason);
+      }
+      
+      throw new Error(`Stack set operation ${operationId} ${status}: ${operation.StackSetOperation.StatusReason || 'No detailed error message available'}`);
     }
     
     // Wait 10 seconds before checking again

@@ -267,6 +267,8 @@ async function deploy() {
           }
         ],
         OperationId: `CreateInstances-${Date.now()}`,
+        AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
+        ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
         CallAs: 'SELF'
       }));
 

@@ -126,7 +126,6 @@ async function deploy() {
       Regions: regions,
       TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
       Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-      ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
       PermissionModel: 'SELF_MANAGED',
       AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
       ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
@@ -135,7 +134,7 @@ async function deploy() {
     await waitForStackSetOperation(cfn, createResponse.OperationId, STACK_SET_NAME);
     console.log('Stack set created successfully');
   } catch (err) {
-    if (err.name !== 'NameAlreadyExistsException') {
+    if (err.name === 'NameAlreadyExistsException') {
       console.log('Stack set already exists, proceeding with update');
     } else {
       console.error('Error creating stack set:', err);

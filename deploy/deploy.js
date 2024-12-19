@@ -266,8 +266,8 @@ async function deploy() {
     }
   }
 
-  // Create or update stack instances in target accounts
-  console.log('Creating/updating stack instances...')
+  // Create stack instances in target accounts
+  console.log('Creating stack instances...')
   try {
     const instanceParams = {
       StackSetName: STACK_SET_NAME,
@@ -275,43 +275,47 @@ async function deploy() {
       Regions: regions,
       OperationPreferences: {
         FailureTolerancePercentage: 0,
-        MaxConcurrentPercentage: 100
+        MaxConcurrentPercentage: 100,
+        RegionConcurrencyType: 'PARALLEL'
       },
       CallAs: 'SELF'
     }
 
-    let retryCount = 0
-    const maxRetries = 3
-
-    while (retryCount < maxRetries) {
-      try {
-        const createInstancesResponse = await cfnWithRole.send(
-          new CreateStackInstancesCommand(instanceParams)
+    try {
+      console.log('Attempting to create new stack instances...')
+      const createInstancesResponse = await cfnWithRole.send(
+        new CreateStackInstancesCommand(instanceParams)
+      )
+      console.log('Stack instance creation initiated')
+      await waitForStackSetOperation(
+        cfnWithRole,
+        createInstancesResponse.OperationId,
+        STACK_SET_NAME
+      )
+      console.log('Stack instances created successfully')
+    } catch (createErr) {
+      if (createErr.name === 'OperationInProgressException') {
+        console.log('Another operation is in progress, waiting for completion...')
+        // Wait for 30 seconds before considering it a failure
+        await new Promise(resolve => setTimeout(resolve, 30000))
+        throw new Error('Operation in progress, please try again later')
+      } else if (createErr.name === 'NameAlreadyExistsException') {
+        console.log('Stack instances already exist, proceeding with update')
+        const updateResponse = await cfnWithRole.send(
+          new UpdateStackSetCommand({
+            ...instanceParams,
+            OperationId: `Update-${Date.now()}`
+          })
         )
-        console.log('Stack instance creation/update initiated')
         await waitForStackSetOperation(
           cfnWithRole,
-          createInstancesResponse.OperationId,
+          updateResponse.OperationId,
           STACK_SET_NAME
         )
-        break
-      } catch (instanceErr) {
-        if (instanceErr.name === 'OperationInProgressException') {
-          console.log('Operation in progress, waiting before retry...')
-          await new Promise(resolve => setTimeout(resolve, 30000)) // Wait 30 seconds
-          retryCount++
-          if (retryCount === maxRetries) {
-            throw new Error(
-              'Max retries reached waiting for operation completion'
-            )
-          }
-          continue
-        }
-        if (instanceErr.name === 'StackInstanceNotFoundException') {
-          console.log('Stack instance not found, proceeding with creation')
-          break
-        }
-        throw instanceErr
+        console.log('Stack instances updated successfully')
+      } else {
+        console.error('Error creating stack instances:', createErr)
+        throw createErr
       }
     }
   } catch (err) {

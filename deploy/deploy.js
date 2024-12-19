@@ -234,7 +234,9 @@ async function deploy() {
         MaxConcurrentPercentage: 100
       },
       OperationId: `UpdateInstances-${Date.now()}`,
-      CallAs: 'SELF'
+      CallAs: 'SELF',
+      AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
+      ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
     }));
     
     console.log('Stack instance update initiated');

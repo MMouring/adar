@@ -149,6 +149,10 @@ async function deploy() {
     Regions: regions,
     TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
     Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
+    OperationPreferences: {
+      FailureTolerancePercentage: 0,
+      MaxConcurrentPercentage: 100
+    },
     PermissionModel: 'SELF_MANAGED',
     AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
     ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'

@@ -260,6 +260,12 @@ async function deploy() {
           FailureTolerancePercentage: 0,
           MaxConcurrentPercentage: 100
         },
+        Parameters: [
+          {
+            ParameterKey: 'stage',
+            ParameterValue: ENV
+          }
+        ],
         OperationId: `CreateInstances-${Date.now()}`,
         CallAs: 'SELF'
       }));

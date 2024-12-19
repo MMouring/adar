@@ -1,9 +1,0 @@
-{
-    "name": "hotel-planner-python-lambda-layers",
-    "version": "1.0.2",
-    "description": "Python lambda layers for the hotel planner cloud / serverless projects.",
-    "author": "MMouring",
-    "license": "ISC",
-    "devDependencies": {},
-    "dependencies": {}
-}

@@ -5,6 +5,16 @@ const fs = require('fs');
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 
+// Configuration values can come from three sources, in order of precedence:
+// 1. Environment variables set directly in GitHub Actions:
+//    env:
+//      npm_package_config_env: ${{ github.event.inputs.environment || 'dev' }}
+// 2. npm config values from package.json:
+//    "config": {
+//      "env": "dev"
+//    }
+// 3. Default values in the destructuring below (e.g. ENV = 'dev')
+//
 const {
   npm_package_config_env: ENV = 'dev',
   npm_package_config_accounts: ACCOUNTS = '',

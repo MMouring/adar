@@ -13,14 +13,14 @@ Parameters:
 Mappings:
   Layers:
     stage:
-      GoogleAdsLayer: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:4"
-      BingAdsLayer: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:bing-ads-layer:4"
+      GoogleAdsLayer: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:4"
+      BingAdsLayer: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:bing-ads-layer:4"
     prod:
-      GoogleAdsLayer: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:2"
-      BingAdsLayer: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:bing-ads-layer:2"
+      GoogleAdsLayer: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:2"
+      BingAdsLayer: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:bing-ads-layer:2"
     dev:
-      GoogleAdsLayer: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:1"
-      BingAdsLayer: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:bing-ads-layer:1"
+      GoogleAdsLayer: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:1"
+      BingAdsLayer: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:bing-ads-layer:1"
 
 Resources:
   GoogleAdsEditorFeedItemLambda:
@@ -47,5 +47,5 @@ Resources:
           GOOGLE_ADS_LOGIN_CUSTOMER_ID: !Sub ${googleAdsLoginCustomerId}
           GOOGLE_ADS_USE_PROTO_PLUS: true
       Layers:
-        - !FindInMap [Layers, !Ref stage, GoogleAdsLayer]
-        - !FindInMap [Layers, !Ref stage, BingAdsLayer]
+        - !Sub ${!FindInMap [Layers, !Ref stage, GoogleAdsLayer]}
+        - !Sub ${!FindInMap [Layers, !Ref stage, BingAdsLayer]}

@@ -126,9 +126,9 @@ async function deploy() {
       Regions: regions,
       TemplateURL: `https://s3.amazonaws.com/lambda-stack-sets/${STACK_SET_NAME}.yml`,
       Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-      AdministrationRoleARN: `arn:aws:iam::${accounts[0]}:role/AWSCloudFormationStackSetAdministrationRole${ENV}`,
       ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
-      PermissionModel: 'SELF_MANAGED'
+      PermissionModel: 'SELF_MANAGED',
+      CallAs: 'DELEGATED_ADMIN'
     }));
     console.log('Stack set creation initiated');
     await waitForStackSetOperation(cfn, createResponse.OperationId, STACK_SET_NAME);
@@ -149,8 +149,8 @@ async function deploy() {
     Regions: regions,
     TemplateURL: `https://s3.amazonaws.com/lambda-stack-sets/${STACK_SET_NAME}.yml`,
     Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-    AdministrationRoleARN: `arn:aws:iam::${accounts[0]}:role/AWSCloudFormationStackSetAdministrationRole${ENV}`,
-    ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
+    ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
+    CallAs: 'DELEGATED_ADMIN'
   }));
   
   console.log('Stack set update initiated');

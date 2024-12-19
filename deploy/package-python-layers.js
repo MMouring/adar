@@ -27,7 +27,8 @@ async function packagePythonLayers() {
     // Create zip file
     console.log(`Creating zip for ${layerName}...`);
     await exec(
-      `cd ${workDir} && zip -r ../../${layerName}-layer.zip python/`
+      `cd ${workDir} && zip -r ../../${layerName}-layer.zip python/`,
+      { maxBuffer: 1024 * 1024 * 10 } // Increase buffer to 10MB
     );
     
     console.log(`Successfully packaged ${layerName} layer`);

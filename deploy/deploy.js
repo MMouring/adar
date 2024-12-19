@@ -223,12 +223,13 @@ async function deploy() {
 
   // Create or update stack instances in target accounts
   try {
-    // First try to create new instances
-    console.log('Attempting to create stack instances...');
-    const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand({
+    console.log('Attempting to update stack instances...');
+    const updateInstancesResponse = await cfnWithRole.send(new UpdateStackSetCommand({
       StackSetName: STACK_SET_NAME,
+      TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
       Accounts: accounts,
       Regions: regions,
+      Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
       OperationPreferences: {
         FailureTolerancePercentage: 0,
         MaxConcurrentPercentage: 100
@@ -239,46 +240,18 @@ async function deploy() {
           ParameterValue: ENV
         }
       ],
-      OperationId: `CreateInstances-${Date.now()}`,
+      OperationId: `UpdateInstances-${Date.now()}`,
+      CallAs: 'SELF',
       AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
-      ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
-      CallAs: 'SELF'
+      ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
     }));
 
-    console.log('Stack instance creation initiated');
-    await waitForStackSetOperation(cfnWithRole, createInstancesResponse.OperationId, STACK_SET_NAME);
+    console.log('Stack instance update initiated');
+    await waitForStackSetOperation(cfnWithRole, updateInstancesResponse.OperationId, STACK_SET_NAME);
   } catch (err) {
-    if (err.name === 'NameAlreadyExistsException' || err.name === 'StackInstanceNotFoundException') {
-      console.log('Stack instances need to be updated or created, proceeding...');
-        
-      // Try creating new stack instances first
-      try {
-        const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand({
-          StackSetName: STACK_SET_NAME,
-          Accounts: accounts,
-          Regions: regions,
-          OperationPreferences: {
-            FailureTolerancePercentage: 0,
-            MaxConcurrentPercentage: 100
-          },
-          Parameters: [
-            {
-              ParameterKey: 'stage',
-              ParameterValue: ENV
-            }
-          ],
-          OperationId: `CreateInstances-${Date.now()}`,
-          CallAs: 'SELF',
-          AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
-          ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
-        }));
-          
-        console.log('Stack instance creation initiated');
-        await waitForStackSetOperation(cfnWithRole, createInstancesResponse.OperationId, STACK_SET_NAME);
-      } catch (createErr) {
-        if (createErr.name === 'NameAlreadyExistsException') {
-          console.log('Stack instances exist, falling back to update...');
-          const updateInstancesResponse = await cfnWithRole.send(new UpdateStackSetCommand({
+    if (err.name === 'StackInstanceNotFoundException') {
+      console.log('No stack instances found, creating new ones...');
+      const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand({
         StackSetName: STACK_SET_NAME,
         TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
         Accounts: accounts,

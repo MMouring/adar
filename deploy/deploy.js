@@ -221,29 +221,20 @@ async function deploy() {
   // Now create/update stack instances in target accounts
   const updateInstancesResponse = await cfnWithRole.send(new UpdateStackSetCommand({
     StackSetName: STACK_SET_NAME,
-    Accounts: accounts,
+    DeploymentTargets: {
+      Accounts: accounts
+    },
     Regions: regions,
-    TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
-    Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-    Parameters: [
-      {
-        ParameterKey: 'stage',
-        ParameterValue: ENV
-      }
-    ],
     OperationPreferences: {
       FailureTolerancePercentage: 0,
       MaxConcurrentPercentage: 100
     },
-    PermissionModel: 'SELF_MANAGED',
-    AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
-    ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
     OperationId: `UpdateInstances-${Date.now()}`,
     CallAs: 'SELF'
   }));
   
-  console.log('Stack set update initiated');
-  await waitForStackSetOperation(cfnWithRole, updateResponse.OperationId, STACK_SET_NAME);
+  console.log('Stack instance update initiated');
+  await waitForStackSetOperation(cfnWithRole, updateInstancesResponse.OperationId, STACK_SET_NAME);
   console.log('Stack set updated successfully');
 }
 

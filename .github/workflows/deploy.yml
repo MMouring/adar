@@ -39,7 +39,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ADMIN_ROLE_ARN }}
           aws-region: ${{ env.DEFAULT_REGION }}
           
       - name: Install Dependencies

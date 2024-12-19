@@ -66,11 +66,11 @@ async function packageAndUpload() {
   }
 }
 
-async function waitForStackSetOperation(cfn, operationId, stackSetName) {
+async function waitForStackSetOperation(cfnWithRole, operationId, stackSetName) {
   console.log(`Waiting for stack set operation ${operationId} to complete...`);
   
   while (true) {
-    const operation = await cfn.send(new DescribeStackSetOperationCommand({
+    const operation = await cfnWithRole.send(new DescribeStackSetOperationCommand({
       StackSetName: stackSetName,
       OperationId: operationId
     }));
@@ -131,7 +131,7 @@ async function deploy() {
       ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
     }));
     console.log('Stack set creation initiated');
-    await waitForStackSetOperation(cfn, createResponse.OperationId, STACK_SET_NAME);
+    await waitForStackSetOperation(cfnWithRole, createResponse.OperationId, STACK_SET_NAME);
     console.log('Stack set created successfully');
   } catch (err) {
     if (err.name === 'NameAlreadyExistsException') {
@@ -159,7 +159,7 @@ async function deploy() {
   }));
   
   console.log('Stack set update initiated');
-  await waitForStackSetOperation(cfn, updateResponse.OperationId, STACK_SET_NAME);
+  await waitForStackSetOperation(cfnWithRole, updateResponse.OperationId, STACK_SET_NAME);
   console.log('Stack set updated successfully');
 }
 

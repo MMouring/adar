@@ -224,6 +224,7 @@ async function deploy() {
     // First try to update existing instances
     const updateInstancesResponse = await cfnWithRole.send(new UpdateStackSetCommand({
       StackSetName: STACK_SET_NAME,
+      TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
       DeploymentTargets: {
         Accounts: accounts
       },

@@ -221,61 +221,32 @@ async function deploy() {
     }
   }
 
-  // Create or update stack instances in target accounts
+  // Create stack instances in target accounts
+  console.log('Creating stack instances...');
   try {
-    console.log('Attempting to update stack instances...');
-    const updateInstancesResponse = await cfnWithRole.send(new UpdateStackSetCommand({
+    const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand({
       StackSetName: STACK_SET_NAME,
-      TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
       Accounts: accounts,
       Regions: regions,
-      Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
+      DeploymentTargets: {
+        Accounts: accounts
+      },
       OperationPreferences: {
         FailureTolerancePercentage: 0,
         MaxConcurrentPercentage: 100
       },
-      Parameters: [
-        {
-          ParameterKey: 'stage',
-          ParameterValue: ENV
-        }
-      ],
-      OperationId: `UpdateInstances-${Date.now()}`,
-      CallAs: 'SELF',
-      AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
-      ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
+      CallAs: 'SELF'
     }));
 
-    console.log('Stack instance update initiated');
-    await waitForStackSetOperation(cfnWithRole, updateInstancesResponse.OperationId, STACK_SET_NAME);
+    console.log('Stack instance creation initiated');
+    await waitForStackSetOperation(cfnWithRole, createInstancesResponse.OperationId, STACK_SET_NAME);
   } catch (err) {
-    if (err.name === 'StackInstanceNotFoundException') {
-      console.log('No stack instances found, creating new ones...');
-      const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand({
-        StackSetName: STACK_SET_NAME,
-        TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
-        Accounts: accounts,
-        Regions: regions,
-        Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-        OperationPreferences: {
-          FailureTolerancePercentage: 0,
-          MaxConcurrentPercentage: 100
-        },
-        Parameters: [
-          {
-            ParameterKey: 'stage',
-            ParameterValue: ENV
-          }
-        ],
-        OperationId: `UpdateInstances-${Date.now()}`,
-        CallAs: 'SELF',
-        AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
-        ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
-      }));
-
-      console.log('Stack instance update initiated');
-      await waitForStackSetOperation(cfnWithRole, updateInstancesResponse.OperationId, STACK_SET_NAME);
+    if (err.name === 'OperationInProgressException') {
+      console.log('Operation already in progress, waiting for completion...');
+      // Wait for a moment and then proceed
+      await new Promise(resolve => setTimeout(resolve, 5000));
     } else {
+      console.error('Error creating stack instances:', err);
       throw err;
     }
   }

@@ -1,10 +1,9 @@
-const { 
-  CloudFormationClient, 
-  UpdateStackSetCommand, 
+const {
+  CloudFormationClient,
+  UpdateStackSetCommand,
   CreateStackSetCommand,
-  CreateStackInstancesCommand,
   DescribeStackSetOperationCommand,
-  ListStackSetOperationResultsCommand 
+  ListStackSetOperationResultsCommand
 } = require('@aws-sdk/client-cloudformation');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { STSClient, AssumeRoleCommand } = require('@aws-sdk/client-sts');
@@ -14,25 +13,25 @@ const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 
 const {
-  npm_package_config_env: ENV,
-  npm_package_config_accounts: ACCOUNTS,
-  npm_package_config_regions: REGIONS,
-  npm_package_config_stackSetName: STACK_SET_NAME,
+  ENV,
+  TARGET_ACCOUNTS,
+  TARGET_REGIONS,
+  STACK_SET_NAME,
   AWS_STACK_ADMIN_ARN
 } = process.env;
 
-if (!ENV || !ACCOUNTS || !REGIONS || !AWS_STACK_ADMIN_ARN) {
+if (!ENV || !TARGET_ACCOUNTS || !TARGET_REGIONS || !AWS_STACK_ADMIN_ARN) {
   console.error('Required environment variables not set:');
-  console.error('- npm_package_config_env: Target environment');
-  console.error('- npm_package_config_accounts: Comma-separated list of AWS accounts');
-  console.error('- npm_package_config_regions: Comma-separated list of AWS regions');
+  console.error('- ENV: Target environment');
+  console.error('- TARGET_ACCOUNTS: Comma-separated list of AWS accounts');
+  console.error('- TARGET_REGIONS: Comma-separated list of AWS regions');
   console.error('- AWS_STACK_ADMIN_ARN: ARN of the StackSet Administration Role');
   process.exit(1);
 }
 
 async function packageAndUpload() {
   // First package Python layers for projects requiring them
-  await packagePythonLayers();
+  // await packagePythonLayers();
 
   // Assume StackSet Administration Role first
   const sts = new STSClient();
@@ -50,13 +49,13 @@ async function packageAndUpload() {
       sessionToken: credentials.Credentials.SessionToken
     }
   });
-  
-  const accounts = ACCOUNTS.split(',');
-  const regions = REGIONS.split(',');
-  
+
+  const accounts = TARGET_ACCOUNTS.split(',');
+  const regions = TARGET_REGIONS.split(',');
+
   // Read the template file
   const template = await fs.promises.readFile('cloudformation-stack-set.yml', 'utf8');
-  
+
   // Package for each account/region combination
   for (const account of accounts) {
     for (const region of regions) {
@@ -70,7 +69,7 @@ async function packageAndUpload() {
 
       // Read the packaged template
       let packagedTemplate = await fs.promises.readFile('cloudformation-stack-set-output.yml', 'utf8');
-      
+
       // Replace the S3 URLs with dynamic references
       packagedTemplate = packagedTemplate.replace(
         /CodeUri: s3:\/\/hotel-planner-deploy-[0-9]*-[a-z]*-[a-z]*-[0-9]*\/([^"'\s]+)/g,
@@ -91,31 +90,31 @@ async function packageAndUpload() {
 
 async function waitForStackSetOperation(cfnWithRole, operationId, stackSetName) {
   console.log(`Waiting for stack set operation ${operationId} to complete...`);
-  
+
   while (true) {
     const operation = await cfnWithRole.send(new DescribeStackSetOperationCommand({
       StackSetName: stackSetName,
       OperationId: operationId
     }));
-    
+
     const status = operation.StackSetOperation.Status;
     console.log(`Current status: ${status}`);
-    
+
     if (status === 'SUCCEEDED') {
       console.log('Stack set operation completed successfully');
       return;
     }
-    
+
     if (status === 'FAILED' || status === 'STOPPED') {
       // Get detailed error information
       console.error('Stack set operation details:', JSON.stringify(operation.StackSetOperation, null, 2));
-      
+
       // Get detailed results for failed instances
       const results = await cfnWithRole.send(new ListStackSetOperationResultsCommand({
         StackSetName: stackSetName,
         OperationId: operationId
       }));
-      
+
       console.error('\nDetailed operation results:');
       if (results.Summaries) {
         for (const summary of results.Summaries) {
@@ -127,14 +126,14 @@ async function waitForStackSetOperation(cfnWithRole, operationId, stackSetName) 
           }
         }
       }
-      
+
       if (operation.StackSetOperation.StatusReason) {
         console.error('\nOperation failure reason:', operation.StackSetOperation.StatusReason);
       }
-      
+
       throw new Error(`Stack set operation ${operationId} ${status}: Check logs above for detailed failure information`);
     }
-    
+
     // Wait 10 seconds before checking again
     await new Promise(resolve => setTimeout(resolve, 10000));
   }
@@ -143,10 +142,10 @@ async function waitForStackSetOperation(cfnWithRole, operationId, stackSetName) 
 async function deploy() {
   const sts = new STSClient();
   const cfn = new CloudFormationClient();
-  
-  const accounts = ACCOUNTS.split(',');
-  const regions = REGIONS.split(',');
-  
+
+  const accounts = TARGET_ACCOUNTS.split(',');
+  const regions = TARGET_REGIONS.split(',');
+
   // Assume StackSet Administration Role
   console.log('Assuming StackSet Administration Role');
   const credentials = await sts.send(new AssumeRoleCommand({
@@ -162,10 +161,10 @@ async function deploy() {
       sessionToken: credentials.Credentials.SessionToken
     }
   };
-  
+
   // Create new CloudFormation client with assumed role credentials
   const cfnWithRole = new CloudFormationClient(config);
-  
+
   // First create/update the stack set definition (without instances)
   try {
     const createResponse = await cfnWithRole.send(new CreateStackSetCommand({
@@ -188,7 +187,7 @@ async function deploy() {
   } catch (err) {
     if (err.name === 'NameAlreadyExistsException') {
       console.log('Stack set already exists, proceeding with update');
-      
+
       // Update the stack set template/configuration
       const updateResponse = await cfnWithRole.send(new UpdateStackSetCommand({
         StackSetName: STACK_SET_NAME,
@@ -208,9 +207,11 @@ async function deploy() {
         AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
         ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
         OperationId: `UpdateTemplate-${Date.now()}`,
+        Regions: regions,
+        Accounts: accounts,
         CallAs: 'SELF'
       }));
-      
+
       await waitForStackSetOperation(cfnWithRole, updateResponse.OperationId, STACK_SET_NAME);
       console.log('Stack set template updated successfully');
     } else {
@@ -227,16 +228,23 @@ async function deploy() {
       TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
       Accounts: accounts,
       Regions: regions,
+      Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
       OperationPreferences: {
         FailureTolerancePercentage: 0,
         MaxConcurrentPercentage: 100
       },
+      Parameters: [
+        {
+          ParameterKey: 'stage',
+          ParameterValue: ENV
+        }
+      ],
       OperationId: `UpdateInstances-${Date.now()}`,
       CallAs: 'SELF',
       AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
       ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
     }));
-    
+
     console.log('Stack instance update initiated');
     await waitForStackSetOperation(cfnWithRole, updateInstancesResponse.OperationId, STACK_SET_NAME);
   } catch (err) {
@@ -246,15 +254,23 @@ async function deploy() {
       const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand({
         StackSetName: STACK_SET_NAME,
         Accounts: accounts,
+        Parameters: [
+          {
+            ParameterKey: 'stage',
+            ParameterValue: ENV
+          }
+        ],
         Regions: regions,
         OperationPreferences: {
           FailureTolerancePercentage: 0,
           MaxConcurrentPercentage: 100
         },
         OperationId: `CreateInstances-${Date.now()}`,
+        AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
+        ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
         CallAs: 'SELF'
       }));
-      
+
       console.log('Stack instance creation initiated');
       await waitForStackSetOperation(cfnWithRole, createInstancesResponse.OperationId, STACK_SET_NAME);
     } else {

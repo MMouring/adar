@@ -195,7 +195,7 @@ async function deploy() {
     }
   }
 
-  // Always update the stack set to ensure instances are created/updated
+  // Update the stack set and create/update instances
   const updateResponse = await cfnWithRole.send(new UpdateStackSetCommand({
     StackSetName: STACK_SET_NAME,
     Accounts: accounts,
@@ -214,7 +214,9 @@ async function deploy() {
     },
     PermissionModel: 'SELF_MANAGED',
     AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
-    ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
+    ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
+    OperationId: `Update-${Date.now()}`,
+    CallAs: 'SELF'
   }));
   
   console.log('Stack set update initiated');

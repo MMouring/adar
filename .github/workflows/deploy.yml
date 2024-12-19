@@ -1,12 +1,16 @@
-name: Deploy Lambda Layer/Service
+name: Deploy Lambda Layers and Services
 
 on:
+  # Trigger on push to main branch
   push:
-    branches: [ main ]
+    branches: 
+      - main
+  
+  # Allow manual triggers with environment selection
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy to'
+        description: 'Target deployment environment'
         required: true
         default: 'dev'
         type: choice
@@ -15,42 +19,46 @@ on:
           - staging
           - prod
 
+# Environment variables used across jobs
 env:
   DEFAULT_REGION: us-east-1
 
+# Required permissions for OIDC authentication
 permissions:
-  id-token: write
-  contents: read
+  id-token: write   # Required for AWS OIDC auth
+  contents: read    # Required for checkout
 
 jobs:
   deploy:
+    name: Deploy to AWS
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-      - name: Setup Node.js
+      - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
           
-      - name: Configure AWS Credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ADMIN_ROLE_ARN }}
           aws-region: ${{ env.DEFAULT_REGION }}
           
-      - name: Install Dependencies
+      - name: Install project dependencies
         run: npm ci
         
-      - name: Run Tests
+      - name: Run test suite
         run: npm test
         env:
           npm_config_skiptests: ${{ github.event.inputs.environment == 'prod' && 'false' || 'true' }}
           
-      - name: Deploy Stack
+      - name: Deploy CloudFormation stack
         run: npm run deploy
         env:
           npm_package_config_env: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}

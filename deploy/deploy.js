@@ -1,4 +1,10 @@
-const { CloudFormationClient, UpdateStackSetCommand, CreateStackSetCommand, DescribeStackSetOperationCommand } = require('@aws-sdk/client-cloudformation');
+const { 
+  CloudFormationClient, 
+  UpdateStackSetCommand, 
+  CreateStackSetCommand, 
+  DescribeStackSetOperationCommand,
+  ListStackSetOperationResultsCommand 
+} = require('@aws-sdk/client-cloudformation');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { STSClient, AssumeRoleCommand } = require('@aws-sdk/client-sts');
 const { packagePythonLayers } = require('./package-python-layers');
@@ -103,11 +109,29 @@ async function waitForStackSetOperation(cfnWithRole, operationId, stackSetName) 
       // Get detailed error information
       console.error('Stack set operation details:', JSON.stringify(operation.StackSetOperation, null, 2));
       
-      if (operation.StackSetOperation.StatusReason) {
-        console.error('Failure reason:', operation.StackSetOperation.StatusReason);
+      // Get detailed results for failed instances
+      const results = await cfnWithRole.send(new ListStackSetOperationResultsCommand({
+        StackSetName: stackSetName,
+        OperationId: operationId
+      }));
+      
+      console.error('\nDetailed operation results:');
+      if (results.Summaries) {
+        for (const summary of results.Summaries) {
+          if (summary.Status === 'FAILED') {
+            console.error(`\nAccount: ${summary.Account}`);
+            console.error(`Region: ${summary.Region}`);
+            console.error(`Status: ${summary.Status}`);
+            console.error(`Reason: ${summary.StatusReason}`);
+          }
+        }
       }
       
-      throw new Error(`Stack set operation ${operationId} ${status}: ${operation.StackSetOperation.StatusReason || 'No detailed error message available'}`);
+      if (operation.StackSetOperation.StatusReason) {
+        console.error('\nOperation failure reason:', operation.StackSetOperation.StatusReason);
+      }
+      
+      throw new Error(`Stack set operation ${operationId} ${status}: Check logs above for detailed failure information`);
     }
     
     // Wait 10 seconds before checking again

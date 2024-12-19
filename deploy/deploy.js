@@ -1,6 +1,7 @@
 const { CloudFormationClient, UpdateStackSetCommand, CreateStackSetCommand, DescribeStackSetOperationCommand } = require('@aws-sdk/client-cloudformation');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { STSClient, AssumeRoleCommand } = require('@aws-sdk/client-sts');
+const { packagePythonLayers } = require('./package-python-layers');
 const fs = require('fs');
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
@@ -13,6 +14,9 @@ const {
 } = process.env;
 
 async function packageAndUpload() {
+  // First package Python layers
+  await packagePythonLayers();
+  
   const s3 = new S3Client();
   const accounts = ACCOUNTS.split(',');
   const regions = REGIONS.split(',');

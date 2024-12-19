@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test": "if [[ ${npm_config_skiptests} != 'true' ]]; then jest; fi",
+    "package:python-layers": "node -e 'require(\"./deploy/package-python-layers.js\").packagePythonLayers()'",
     "cloudformation:package": "node deploy/deploy.js package && rm -f cloudformation-stack-set-output.yml",
     "cloudformation:deploy": "node deploy/deploy.js deploy",
     "deploy": "npm run cloudformation:deploy"

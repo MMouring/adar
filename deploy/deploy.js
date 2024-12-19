@@ -24,7 +24,7 @@ if (!ENV || !ACCOUNTS || !REGIONS || !AWS_STACK_ADMIN_ARN) {
 }
 
 async function packageAndUpload() {
-  // First package Python layers
+  // First package Python layers for projects requiring them
   await packagePythonLayers();
 
   // Assume StackSet Administration Role first

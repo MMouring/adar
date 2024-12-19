@@ -4,7 +4,7 @@
   "description": "Multi-account, multi-region Lambda deployment",
   "main": "deploy/deploy.js",
   "config": {
-    "stackSetName": "lambda-stack-set"
+    "stackSetName": "hotel-planner-python-lambda-layers-stack-set"
   },
   "scripts": {
     "test": "if [[ ${npm_config_skiptests} != 'true' ]]; then jest; fi",

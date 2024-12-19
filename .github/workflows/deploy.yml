@@ -5,6 +5,7 @@ on:
   push:
     branches: 
       - main
+      - stage
   
   # Allow manual triggers with environment selection
   workflow_dispatch:

@@ -202,13 +202,15 @@ async function deploy() {
         ],
         OperationPreferences: {
           FailureTolerancePercentage: 0,
-          MaxConcurrentPercentage: 100
+          MaxConcurrentPercentage: 100,
+          RegionConcurrencyType: 'PARALLEL'
         },
         PermissionModel: 'SELF_MANAGED',
         AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
         ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
         OperationId: `UpdateTemplate-${Date.now()}`,
-        CallAs: 'SELF'
+        CallAs: 'SELF',
+        // Not specifying Accounts or Regions to update all stack instances
       }));
 
       await waitForStackSetOperation(cfnWithRole, updateResponse.OperationId, STACK_SET_NAME);

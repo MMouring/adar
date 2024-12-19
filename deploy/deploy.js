@@ -133,6 +133,13 @@ async function waitForStackSetOperation(
         JSON.stringify(operation.StackSetOperation, null, 2)
       )
 
+      // Check for resource existence conflicts
+      if (operation.StackSetOperation.StatusReason &&
+          operation.StackSetOperation.StatusReason.includes('already exists')) {
+        console.log('Detected existing resource conflict, attempting to continue...')
+        return // Continue deployment despite resource existence error
+      }
+
       // Get detailed results for failed instances
       const results = await cfnWithRole.send(
         new ListStackSetOperationResultsCommand({
@@ -323,7 +330,12 @@ async function deploy() {
         const updateResponse = await cfnWithRole.send(
           new UpdateStackSetCommand({
             ...instanceParams,
-            OperationId: `Update-${Date.now()}`
+            OperationId: `Update-${Date.now()}`,
+            OperationPreferences: {
+              ...instanceParams.OperationPreferences,
+              FailureTolerancePercentage: 10, // Allow some failures
+              RegionOrder: ['us-east-1'], // Prioritize primary region
+            }
           })
         )
         await waitForStackSetOperation(

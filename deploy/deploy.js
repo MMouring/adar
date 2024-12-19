@@ -1,4 +1,4 @@
-const { CloudFormationClient, UpdateStackSetCommand, CreateStackSetCommand } = require('@aws-sdk/client-cloudformation');
+const { CloudFormationClient, UpdateStackSetCommand, CreateStackSetCommand, DescribeStackSetOperationCommand } = require('@aws-sdk/client-cloudformation');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { STSClient, AssumeRoleCommand } = require('@aws-sdk/client-sts');
 const fs = require('fs');
@@ -52,6 +52,32 @@ async function packageAndUpload() {
   }
 }
 
+async function waitForStackSetOperation(cfn, operationId, stackSetName) {
+  console.log(`Waiting for stack set operation ${operationId} to complete...`);
+  
+  while (true) {
+    const operation = await cfn.send(new DescribeStackSetOperationCommand({
+      StackSetName: stackSetName,
+      OperationId: operationId
+    }));
+    
+    const status = operation.StackSetOperation.Status;
+    console.log(`Current status: ${status}`);
+    
+    if (status === 'SUCCEEDED') {
+      console.log('Stack set operation completed successfully');
+      return;
+    }
+    
+    if (status === 'FAILED' || status === 'STOPPED') {
+      throw new Error(`Stack set operation ${operationId} ${status}`);
+    }
+    
+    // Wait 10 seconds before checking again
+    await new Promise(resolve => setTimeout(resolve, 10000));
+  }
+}
+
 async function deploy() {
   const sts = new STSClient();
   const cfn = new CloudFormationClient();
@@ -67,7 +93,7 @@ async function deploy() {
   
   // Try to create the stack set first
   try {
-    await cfn.send(new CreateStackSetCommand({
+    const createResponse = await cfn.send(new CreateStackSetCommand({
       StackSetName: STACK_SET_NAME,
       Accounts: accounts,
       Regions: regions,
@@ -77,6 +103,8 @@ async function deploy() {
       ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
       PermissionModel: 'SELF_MANAGED'
     }));
+    console.log('Stack set creation initiated');
+    await waitForStackSetOperation(cfn, createResponse.OperationId, STACK_SET_NAME);
     console.log('Stack set created successfully');
   } catch (err) {
     if (err.name !== 'NameAlreadyExistsException') {
@@ -88,7 +116,7 @@ async function deploy() {
   }
 
   // Always update the stack set to ensure instances are created/updated
-  await cfn.send(new UpdateStackSetCommand({
+  const updateResponse = await cfn.send(new UpdateStackSetCommand({
     StackSetName: STACK_SET_NAME,
     Accounts: accounts,
     Regions: regions,
@@ -97,6 +125,10 @@ async function deploy() {
     AdministrationRoleARN: `arn:aws:iam::${accounts[0]}:role/AWSCloudFormationStackSetAdministrationRole${ENV}`,
     ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
   }));
+  
+  console.log('Stack set update initiated');
+  await waitForStackSetOperation(cfn, updateResponse.OperationId, STACK_SET_NAME);
+  console.log('Stack set updated successfully');
 }
 
 const command = process.argv[2];

@@ -27,33 +27,38 @@ async function deploy() {
     RoleSessionName: STACK_SET_NAME
   }));
   
-  // Deploy stack set
+  // Try to create the stack set first
   try {
-    await cfn.send(new UpdateStackSetCommand({
+    await cfn.send(new CreateStackSetCommand({
       StackSetName: STACK_SET_NAME,
       Accounts: accounts,
       Regions: regions,
       TemplateURL: `https://s3.amazonaws.com/lambda-stack-sets/${STACK_SET_NAME}.yml`,
       Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
       AdministrationRoleARN: `arn:aws:iam::${accounts[0]}:role/AWSCloudFormationStackSetAdministrationRole${ENV}`,
-      ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
+      ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
+      PermissionModel: 'SELF_MANAGED'
     }));
+    console.log('Stack set created successfully');
   } catch (err) {
-    if (err.name === 'StackSetNotFoundException') {
-      await cfn.send(new CreateStackSetCommand({
-        StackSetName: STACK_SET_NAME,
-        Accounts: accounts,
-        Regions: regions,
-        TemplateURL: `https://s3.amazonaws.com/lambda-stack-sets/${STACK_SET_NAME}.yml`,
-        Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-        AdministrationRoleARN: `arn:aws:iam::${accounts[0]}:role/AWSCloudFormationStackSetAdministrationRole${ENV}`,
-        ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
-        PermissionModel: 'SELF_MANAGED'
-      }));
+    if (err.name !== 'NameAlreadyExistsException') {
+      console.log('Stack set already exists, proceeding with update');
     } else {
+      console.error('Error creating stack set:', err);
       throw err;
     }
   }
+
+  // Always update the stack set to ensure instances are created/updated
+  await cfn.send(new UpdateStackSetCommand({
+    StackSetName: STACK_SET_NAME,
+    Accounts: accounts,
+    Regions: regions,
+    TemplateURL: `https://s3.amazonaws.com/lambda-stack-sets/${STACK_SET_NAME}.yml`,
+    Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
+    AdministrationRoleARN: `arn:aws:iam::${accounts[0]}:role/AWSCloudFormationStackSetAdministrationRole${ENV}`,
+    ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
+  }));
 }
 
 const command = process.argv[2];

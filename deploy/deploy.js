@@ -2,6 +2,7 @@ const {
   CloudFormationClient,
   UpdateStackSetCommand,
   CreateStackSetCommand,
+  CreateStackInstancesCommand,
   DescribeStackSetOperationCommand,
   ListStackSetOperationResultsCommand
 } = require('@aws-sdk/client-cloudformation');
@@ -248,26 +249,18 @@ async function deploy() {
     console.log('Stack instance update initiated');
     await waitForStackSetOperation(cfnWithRole, updateInstancesResponse.OperationId, STACK_SET_NAME);
   } catch (err) {
-    if (err.name === 'StackInstanceNotFoundException') {
+    if (err.Error && err.Error.Code === 'StackInstanceNotFoundException') {
       console.log('No stack instances found, creating new instances...');
       // Create new stack instances
       const createInstancesResponse = await cfnWithRole.send(new CreateStackInstancesCommand({
         StackSetName: STACK_SET_NAME,
         Accounts: accounts,
-        Parameters: [
-          {
-            ParameterKey: 'stage',
-            ParameterValue: ENV
-          }
-        ],
         Regions: regions,
         OperationPreferences: {
           FailureTolerancePercentage: 0,
           MaxConcurrentPercentage: 100
         },
         OperationId: `CreateInstances-${Date.now()}`,
-        AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
-        ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
         CallAs: 'SELF'
       }));
 

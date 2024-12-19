@@ -174,6 +174,12 @@ async function deploy() {
       TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
       Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
       PermissionModel: 'SELF_MANAGED',
+      Parameters: [
+        {
+          ParameterKey: 'stage',
+          ParameterValue: ENV
+        }
+      ],
       AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
       ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
     }));
@@ -196,6 +202,12 @@ async function deploy() {
     Regions: regions,
     TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
     Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
+    Parameters: [
+      {
+        ParameterKey: 'stage',
+        ParameterValue: ENV
+      }
+    ],
     OperationPreferences: {
       FailureTolerancePercentage: 0,
       MaxConcurrentPercentage: 100

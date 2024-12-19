@@ -124,7 +124,7 @@ async function deploy() {
       StackSetName: STACK_SET_NAME,
       Accounts: accounts,
       Regions: regions,
-      TemplateURL: `https://s3.amazonaws.com/lambda-stack-sets/${STACK_SET_NAME}.yml`,
+      TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
       Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
       ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
       PermissionModel: 'SELF_MANAGED',
@@ -147,7 +147,7 @@ async function deploy() {
     StackSetName: STACK_SET_NAME,
     Accounts: accounts,
     Regions: regions,
-    TemplateURL: `https://s3.amazonaws.com/lambda-stack-sets/${STACK_SET_NAME}.yml`,
+    TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
     Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
     ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
     CallAs: 'DELEGATED_ADMIN'

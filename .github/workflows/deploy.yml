@@ -73,7 +73,7 @@ jobs:
   release:
     needs: deploy
     if: github.ref == 'refs/heads/main' && success()
-    uses: ./.github/workflows/release.yml
+    uses: .github/workflows/release.yml@v1
     with:
       version_bump: 'patch'
     permissions:

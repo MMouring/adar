@@ -125,11 +125,12 @@ jobs:
           base: "main"
           delete-branch: true
 
-      - name: Approve Pull Request
+      - name: Approve and Merge Pull Request
         if: steps.create-pr.outputs.pull-request-number
         run: |
-          echo "Approving PR #${{ steps.create-pr.outputs.pull-request-number }}"
+          echo "Approving and merging PR #${{ steps.create-pr.outputs.pull-request-number }}"
           gh pr review ${{ steps.create-pr.outputs.pull-request-number }} --approve
+          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --merge --delete-branch
         env:
           GH_TOKEN: ${{ github.token }}
         

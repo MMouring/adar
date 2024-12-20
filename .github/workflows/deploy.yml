@@ -1,4 +1,4 @@
-name: Deploy Lambda Layers and Services
+name: CloudFormation StackSet Deployment
 
 on:
   # Trigger on push to main branch
@@ -17,15 +17,20 @@ on:
         type: choice
         options:
           - dev
-          - staging
+          - stage
           - prod
 
 # Environment variables used across jobs
 env:
-  DEFAULT_REGION: us-east-1
-  NODE_ENV: production
-  AWS_MAX_ATTEMPTS: 3
-
+  AWS_DEPLOY_ARN: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}"
+  AWS_STACK_ADMIN_ARN: ${{ secrets.AWS_STACK_ADMIN_ARN }}
+  DEFAULT_ACCOUNT: ${{ vars.AWS_ACCOUNT_ID }}
+  DEFAULT_REGION: ${{ vars.AWS_REGION }}
+  TARGET_ACCOUNTS: ${{ vars.TARGET_ACCOUNTS }}
+  TARGET_REGIONS: ${{ vars.TARGET_REGIONS }}
+  ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
+  STACK_SET_NAME: "hotel-planner-python-lambda-layers-stack-set"
+  
 # Required permissions for OIDC authentication
 permissions:
   id-token: write   # Required for AWS OIDC auth
@@ -50,12 +55,11 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ADMIN_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ARN }}
           aws-region: ${{ env.DEFAULT_REGION }}
           
       - name: Install project dependencies
-        run: npm ci --no-audit
-        continue-on-error: false
+        run: npm ci
         
       - name: Run test suite
         run: npm test
@@ -63,18 +67,48 @@ jobs:
           npm_config_skiptests: ${{ github.event.inputs.environment == 'prod' && 'false' || 'true' }}
           
       - name: Deploy CloudFormation stack
-        run: |
-          npm run deploy || exit 1
+        run: npm run deploy
         env:
           npm_package_config_env: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
-          npm_package_config_accounts: ${{ vars.TARGET_ACCOUNTS }}
-          npm_package_config_regions: ${{ vars.TARGET_REGIONS }}
+          npm_package_config_accounts: ${{ env.TARGET_ACCOUNTS }}
+          npm_package_config_regions: ${{ env.TARGET_REGIONS }}
 
   release:
     needs: deploy
-    if: github.ref == 'refs/heads/main' && success()
-    uses: .github/workflows/release.yml@v1
-    with:
-      version_bump: 'patch'
+    name: Create Release
+    runs-on: ubuntu-latest
     permissions:
       contents: write
+    if: github.ref_name == 'main' && success()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+          
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Configure Git credentials
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+      - name: Bump version and tag
+        id: bump
+        run: |
+          npm version ${{ inputs.version_bump }} -m "Release %s"
+          echo "new_version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          
+      - name: Push changes to GitHub
+        run: git push --follow-tags
+        
+      - name: Create Release on GitHub
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.bump.outputs.new_version }}
+          name: Release v${{ steps.bump.outputs.new_version }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false          
+          token: ${{ github.token }}  

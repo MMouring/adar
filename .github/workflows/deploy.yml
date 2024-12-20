@@ -114,10 +114,23 @@ jobs:
           token: ${{ github.token }}
           commit-message: "chore(release): Bump version [skip ci]"
           title: "chore(release): Version bump"
-          body: "Automated version bump"
+          body: |
+            Automated version bump
+            
+            This PR was automatically created by GitHub Actions.
+            It will be automatically merged once checks pass.
           branch: "version-bump"
           base: "main"
           delete-branch: true
+      
+      - name: Enable Pull Request Auto-merge
+        run: |
+          PR_NUMBER=$(gh pr list --head version-bump --json number -q '.[0].number')
+          if [ ! -z "$PR_NUMBER" ]; then
+            gh pr merge $PR_NUMBER --auto --merge
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
         
       - name: Create Release on GitHub
         uses: softprops/action-gh-release@v1

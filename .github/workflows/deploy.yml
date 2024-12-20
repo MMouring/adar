@@ -123,18 +123,9 @@ jobs:
           branch: "version-bump"
           base: "main"
           
-      - name: Merge Pull Request
-        uses: peter-evans/enable-pull-request-automerge@v3
-        with:
-          token: ${{ github.token }}
-          pull-request-number: ${{ steps.create-pr.outputs.pull-request-number }}
-          merge-method: MERGE
-          
       - name: Force Merge PR
-        if: failure()
         run: |
-          gh pr review ${{ steps.create-pr.outputs.pull-request-number }} --approve
-          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --admin --merge
+          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --merge --delete-branch --admin
         env:
           GH_TOKEN: ${{ github.token }}
           

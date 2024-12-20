@@ -113,7 +113,7 @@ jobs:
         id: create-pr
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ github.token }}
+          token: ${{ secrets.WORKFLOW_TOKEN }}
           commit-message: "chore(release): Bump version [skip ci]"
           title: "chore(release): Version bump"
           body: |
@@ -123,6 +123,18 @@ jobs:
           branch: "version-bump"
           base: "main"
           delete-branch: true
+
+      - name: Auto-approve PR
+        uses: hmarr/auto-approve-action@v3
+        with:
+          pull-request-number: ${{ steps.create-pr.outputs.pull-request-number }}
+          github-token: ${{ secrets.WORKFLOW_TOKEN }}
+          
+      - name: Enable Auto-merge
+        run: |
+          gh pr merge --auto --merge "${{ steps.create-pr.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
         
       - name: Create Release on GitHub
         uses: softprops/action-gh-release@v1

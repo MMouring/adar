@@ -94,21 +94,21 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          
-      - name: Bump version
-        id: bump
+      - name: Bump version        
+        id: bump               
         run: |
-          if ! npm version patch -m "chore(release): %s [skip ci]"; then
-            echo "Failed to bump version"
-            exit 1
-          fi
+          # Ensure we're on the correct branch
+          git checkout main
+          # Bump the version
+          npm --no-git-tag-version version patch
+          # Get the new version
           NEW_VERSION=$(node -p "require('./package.json').version")
-          if [ -z "$NEW_VERSION" ]; then
-            echo "Failed to read new version"
-            exit 1
-          fi
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          
+          # Stage and commit the version bump
+          git add package.json package-lock.json
+          git commit -m "chore(release): v${NEW_VERSION} [skip ci]"
+          # Set output for later steps
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+      
       - name: Push Version Bump
         run: |
           git push origin main --force

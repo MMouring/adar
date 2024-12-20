@@ -79,6 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     if: github.ref_name == 'main' && success()
     steps:
       - name: Checkout code

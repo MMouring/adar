@@ -44,8 +44,16 @@ jobs:
           fi
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           
-      - name: Push changes
-        run: git push --follow-tags
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ github.token }}
+          commit-message: "chore(release): Bump version [skip ci]"
+          title: "chore(release): Version bump"
+          body: "Automated version bump"
+          branch: "version-bump"
+          base: "main"
+          delete-branch: true
         
       - name: Create Release
         uses: softprops/action-gh-release@v1

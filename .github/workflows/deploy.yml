@@ -72,6 +72,6 @@ jobs:
 
       - name: Create Release
         if: github.ref == 'refs/heads/main' && success()
-        uses: ./.github/workflows/release.yml
+        uses: workflow_call
         with:
           version_bump: 'patch'

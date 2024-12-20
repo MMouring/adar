@@ -124,10 +124,15 @@ jobs:
           base: "main"
           
       - name: Merge Pull Request
-        run: |
-          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --merge --auto
+        uses: pascalgn/automerge-action@v0.15.6
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MERGE_LABELS: ""
+          MERGE_METHOD: "merge"
+          MERGE_COMMIT_MESSAGE: "chore(release): Version bump [skip ci]"
+          MERGE_DELETE_BRANCH: "true"
+          MERGE_RETRIES: "6"
+          MERGE_RETRY_SLEEP: "10000"
           
       - name: Create Release
         uses: softprops/action-gh-release@v1

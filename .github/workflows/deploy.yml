@@ -110,6 +110,7 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           
       - name: Create Pull Request
+        id: create-pr
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ github.token }}
@@ -123,13 +124,12 @@ jobs:
           branch: "version-bump"
           base: "main"
           delete-branch: true
-      
+
       - name: Enable Pull Request Auto-merge
+        if: steps.create-pr.outputs.pull-request-number
         run: |
-          PR_NUMBER=$(gh pr list --head version-bump --json number -q '.[0].number')
-          if [ ! -z "$PR_NUMBER" ]; then
-            gh pr merge $PR_NUMBER --auto --merge
-          fi
+          echo "Setting up auto-merge for PR #${{ steps.create-pr.outputs.pull-request-number }}"
+          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --auto --merge
         env:
           GH_TOKEN: ${{ github.token }}
         

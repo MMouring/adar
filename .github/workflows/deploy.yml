@@ -109,9 +109,20 @@ jobs:
           # Set output for later steps
           echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
       
-      - name: Push Version Bump
-        run: |
-          git push origin main --force
+      - name: Create Pull Request
+        id: create-pr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ github.token }}
+          commit-message: "chore(release): Bump version [skip ci]"
+          title: "chore(release): Version bump"
+          body: |
+            Automated version bump
+            
+            This PR was automatically created by GitHub Actions.
+          branch: "version-bump"
+          base: "main"
+          delete-branch: true
         
       - name: Create Release on GitHub
         uses: softprops/action-gh-release@v1

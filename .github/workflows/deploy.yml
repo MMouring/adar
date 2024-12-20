@@ -69,3 +69,9 @@ jobs:
           npm_package_config_env: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
           npm_package_config_accounts: ${{ vars.TARGET_ACCOUNTS }}
           npm_package_config_regions: ${{ vars.TARGET_REGIONS }}
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/main' && success()
+        uses: ./.github/workflows/release.yml
+        with:
+          version_bump: 'patch'

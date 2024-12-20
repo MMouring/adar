@@ -94,11 +94,19 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           
-      - name: Bump version and tag
+      - name: Bump version
         id: bump
         run: |
-          npm version ${{ inputs.version_bump }} -m "Release %s"
-          echo "new_version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          if ! npm version patch -m "chore(release): %s [skip ci]"; then
+            echo "Failed to bump version"
+            exit 1
+          fi
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          if [ -z "$NEW_VERSION" ]; then
+            echo "Failed to read new version"
+            exit 1
+          fi
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           
       - name: Push changes to GitHub
         run: git push --follow-tags

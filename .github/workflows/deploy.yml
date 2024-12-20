@@ -70,8 +70,11 @@ jobs:
           npm_package_config_accounts: ${{ vars.TARGET_ACCOUNTS }}
           npm_package_config_regions: ${{ vars.TARGET_REGIONS }}
 
-      - name: Create Release
-        if: github.ref == 'refs/heads/main' && success()
-        uses: workflow_call
-        with:
-          version_bump: 'patch'
+  release:
+    needs: deploy
+    if: github.ref == 'refs/heads/main' && success()
+    uses: ./.github/workflows/release.yml@main
+    with:
+      version_bump: 'patch'
+    permissions:
+      contents: write

@@ -72,8 +72,14 @@ function bumpVersion(bumpType) {
         // Create the PR with explicit auth and debug output
         const prCommand = `gh pr create --title "chore: Bump version to ${newVersion}" --body "Automated version bump to ${newVersion}" --base stage`;
         try {
+            // Ensure token is being used
+            console.log('Creating PR with GitHub CLI...');
             execSync(prCommand, { 
-                env: { ...process.env },
+                env: { 
+                    ...process.env,
+                    GH_TOKEN: process.env.GITHUB_TOKEN || process.env.GH_TOKEN,
+                    GITHUB_TOKEN: process.env.GITHUB_TOKEN || process.env.GH_TOKEN
+                },
                 stdio: 'inherit'
             });
             console.log(`Pull request created for version ${newVersion}`);

@@ -12,10 +12,6 @@ on:
           - minor
           - patch
         default: 'patch'
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
@@ -24,7 +20,7 @@ jobs:
   update-version:
     name: Bump NPM Version
     runs-on: ubuntu-latest
-    if: github.ref_name == 'stage' || github.event_name == 'pull_request'
+    if: github.ref_name == 'stage'
     
     steps:
       - name: Checkout code

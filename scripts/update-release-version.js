@@ -51,8 +51,12 @@ function bumpVersion(bumpType) {
     
     // Create pull request and wait for it to be available
     try {
-        // Create the PR
-        execSync(`gh pr create --title "chore: Bump version to ${newVersion}" --body "Automated version bump to ${newVersion}" --base stage`);
+        // Create the PR with explicit auth
+        const prCommand = `gh pr create --title "chore: Bump version to ${newVersion}" --body "Automated version bump to ${newVersion}" --base stage`;
+        execSync(prCommand, { 
+            env: { ...process.env },
+            stdio: 'inherit'
+        });
         console.log(`Pull request created for version ${newVersion}`);
 
         // Poll for PR and merge it

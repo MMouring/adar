@@ -48,6 +48,7 @@ jobs:
 
       - name: Bump version and create PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/update-release-version.js ${{ github.event_name == 'workflow_dispatch' && inputs.bump_type || 'patch' }}
           

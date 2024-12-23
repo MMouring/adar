@@ -37,15 +37,15 @@ jobs:
         with:
           node-version: '18'
           
-      - name: Configure Git and GitHub CLI
+      - name: Configure Git
         run: |
-          git config user.name 'GitHub Actions'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          
-          # Setup GitHub CLI
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup GitHub CLI
+        run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-          
+
       - name: Bump version and create PR
-        run: |
-          node scripts/update-release-version.js ${{ github.event_name == 'workflow_dispatch' && inputs.bump_type || 'patch' }}
+        run: node scripts/update-release-version.js ${{ github.event_name == 'workflow_dispatch' && inputs.bump_type || 'patch' }}
           

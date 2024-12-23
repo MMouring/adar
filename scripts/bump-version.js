@@ -33,6 +33,15 @@ function bumpVersion(bumpType) {
     execSync(`git commit -m "chore(release): ${newVersion} [skip ci]"`);
     execSync(`git tag -a v${newVersion} -m "Release ${newVersion}"`);
     
+    // Update release.txt with new version
+    const releaseNotesPath = path.join(process.cwd(), 'release.txt');
+    let releaseNotes = fs.readFileSync(releaseNotesPath, 'utf8');
+    releaseNotes = releaseNotes.replace(/v\{version\}/, `v${newVersion}`);
+    fs.writeFileSync(releaseNotesPath, releaseNotes);
+
+    // Add all changes to git
+    execSync('git add package.json release.txt');
+    
     // Push changes and tags to remote
     execSync('git push');
     execSync('git push --tags');

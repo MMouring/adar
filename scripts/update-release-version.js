@@ -49,12 +49,42 @@ function bumpVersion(bumpType) {
     // Push branch
     execSync(`git push --set-upstream origin ${branchName}`);
     
-    // Create pull request using GitHub CLI if available
+    // Create pull request and wait for it to be available
     try {
+        // Create the PR
         execSync(`gh pr create --title "chore: Bump version to ${newVersion}" --body "Automated version bump to ${newVersion}" --base stage --delete-branch-on-merge`);
         console.log(`Pull request created for version ${newVersion}`);
+
+        // Poll for PR and merge it
+        console.log('Waiting for PR to be available...');
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (attempts < maxAttempts) {
+            try {
+                // Wait a bit before checking
+                execSync('sleep 3');
+                
+                // Get the PR number
+                const prOutput = execSync('gh pr list --state open --base stage --json number --jq ".[0].number"').toString().trim();
+                
+                if (prOutput) {
+                    console.log(`Found PR #${prOutput}, merging...`);
+                    execSync(`gh pr merge ${prOutput} --merge`);
+                    console.log('PR merged successfully');
+                    break;
+                }
+            } catch (pollError) {
+                attempts++;
+                if (attempts === maxAttempts) {
+                    console.log('Failed to find and merge PR after maximum attempts');
+                    throw pollError;
+                }
+            }
+        }
     } catch (error) {
-        console.log(`Branch pushed to origin/${branchName}. Please create a pull request manually.`);
+        console.log(`Branch pushed to origin/${branchName}. Error: ${error.message}`);
+        throw error;
     }
 
     return newVersion;

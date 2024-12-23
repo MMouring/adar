@@ -79,7 +79,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     if: github.ref_name == 'main' && success()
     steps:
       - name: Checkout code
@@ -90,56 +89,18 @@ jobs:
         with:
           node-version: '18'
           
-      - name: Configure Git credentials
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          
       - name: Bump version
         id: bump
         run: |
-          if ! npm version patch -m "chore(release): %s [skip ci]"; then
-            echo "Failed to bump version"
-            exit 1
-          fi
+          npm version patch -m "chore(release): %s [skip ci]"
           NEW_VERSION=$(node -p "require('./package.json').version")
-          if [ -z "$NEW_VERSION" ]; then
-            echo "Failed to read new version"
-            exit 1
-          fi
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            
-      - name: Create Pull Request
-        id: create-pr
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ github.token }}
-          commit-message: "chore(release): Bump version [skip ci]"
-          title: "chore(release): Version bump"
-          body: |
-            Automated version bump
-            
-            This PR was automatically created by GitHub Actions.
-          branch: "version-bump"
-          base: "main"
-          
-      - name: Force Merge PR
-        run: |
-          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --merge --delete-branch --admin
-        env:
-          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
-          
-      - name: Get version from package.json
-        id: package-version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.package-version.outputs.version }}
-          name: Release v${{ steps.package-version.outputs.version }}
+          tag_name: v${{ steps.bump.outputs.new_version }}
+          name: Release v${{ steps.bump.outputs.new_version }}
           generate_release_notes: true
           draft: false
           prerelease: false

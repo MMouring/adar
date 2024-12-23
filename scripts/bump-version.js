@@ -32,6 +32,10 @@ function bumpVersion(bumpType) {
     execSync(`git add package.json`);
     execSync(`git commit -m "chore(release): ${newVersion} [skip ci]"`);
     execSync(`git tag -a v${newVersion} -m "Release ${newVersion}"`);
+    
+    // Push changes and tags to remote
+    execSync('git push');
+    execSync('git push --tags');
 
     return newVersion;
 }

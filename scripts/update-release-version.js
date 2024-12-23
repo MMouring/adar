@@ -52,7 +52,7 @@ function bumpVersion(bumpType) {
     // Create pull request and wait for it to be available
     try {
         // Create the PR
-        execSync(`gh pr create --title "chore: Bump version to ${newVersion}" --body "Automated version bump to ${newVersion}" --base stage --delete-branch-on-merge`);
+        execSync(`gh pr create --title "chore: Bump version to ${newVersion}" --body "Automated version bump to ${newVersion}" --base stage`);
         console.log(`Pull request created for version ${newVersion}`);
 
         // Poll for PR and merge it

@@ -47,7 +47,7 @@ jobs:
           
       - name: Bump version and create PR
         run: |
-          node scripts/bump-version.js ${{ github.event_name == 'workflow_dispatch' && inputs.bump_type || 'patch' }}
+          node scripts/update-release-version.js ${{ github.event_name == 'workflow_dispatch' && inputs.bump_type || 'patch' }}
           
       - name: Wait for PR creation and merge
         run: |

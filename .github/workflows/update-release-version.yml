@@ -41,8 +41,3 @@ jobs:
       - name: Bump version
         run: |
           node scripts/bump-version.js ${{ inputs.bump_type }}
-          
-      - name: Push changes
-        run: |
-          git push
-          git push --tags

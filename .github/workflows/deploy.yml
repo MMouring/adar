@@ -95,12 +95,20 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Read Release Notes
+        id: release-notes
+        run: |
+          NOTES=$(cat release.txt)
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Release v${{ steps.version.outputs.version }}
-          generate_release_notes: true
+          body: ${{ steps.release-notes.outputs.notes }}
           draft: false
           prerelease: false
           token: ${{ github.token }}

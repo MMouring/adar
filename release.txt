@@ -1,0 +1,11 @@
+# Release Notes
+
+## Features
+- Multi-account, multi-region Lambda deployment
+- Automated GitHub releases
+- CloudFormation StackSet deployment
+
+## Configuration
+- Configurable target accounts and regions
+- Environment-specific deployments (dev/stage/prod)
+- AWS OIDC authentication

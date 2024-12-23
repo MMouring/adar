@@ -42,9 +42,20 @@ function bumpVersion(bumpType) {
     // Add all changes to git
     execSync('git add package.json release.txt');
     
-    // Push changes and tags to remote
-    execSync('git push');
-    execSync('git push --tags');
+    // Create a version bump branch
+    const branchName = `version-bump-${newVersion}`;
+    execSync(`git checkout -b ${branchName}`);
+    
+    // Push branch
+    execSync(`git push --set-upstream origin ${branchName}`);
+    
+    // Create pull request using GitHub CLI if available
+    try {
+        execSync(`gh pr create --title "chore: Bump version to ${newVersion}" --body "Automated version bump to ${newVersion}" --base stage`);
+        console.log(`Pull request created for version ${newVersion}`);
+    } catch (error) {
+        console.log(`Branch pushed to origin/${branchName}. Please create a pull request manually.`);
+    }
 
     return newVersion;
 }

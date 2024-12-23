@@ -70,7 +70,7 @@ function bumpVersion(bumpType) {
                 
                 if (prOutput) {
                     console.log(`Found PR #${prOutput}, merging...`);
-                    execSync(`gh pr merge ${prOutput} --merge`);
+                    execSync(`gh pr merge ${prOutput} --merge --delete-branch`);
                     console.log('PR merged successfully');
                     break;
                 }

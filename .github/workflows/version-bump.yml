@@ -40,7 +40,7 @@ jobs:
           
       - name: Bump version
         run: |
-          npm version ${{ inputs.bump_type }} -m "chore(release): %s [skip ci]"
+          node scripts/bump-version.js ${{ inputs.bump_type }}
           
       - name: Push changes
         run: |

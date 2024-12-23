@@ -44,10 +44,20 @@ function bumpVersion(bumpType) {
     
     // Create a version bump branch
     const branchName = `version-bump-${newVersion}`;
-    execSync(`git checkout -b ${branchName}`);
     
-    // Push branch
-    execSync(`git push --set-upstream origin ${branchName}`);
+    try {
+        // Try to create new branch
+        execSync(`git checkout -b ${branchName}`);
+    } catch (branchError) {
+        // If branch exists, sync with remote
+        console.log(`Branch ${branchName} already exists, syncing with remote...`);
+        execSync(`git fetch origin ${branchName}`);
+        execSync(`git checkout ${branchName}`);
+        execSync(`git reset --hard origin/${branchName}`);
+    }
+    
+    // Force push branch (since we're sure about our changes)
+    execSync(`git push -f --set-upstream origin ${branchName}`);
     
     // Create pull request and wait for it to be available
     try {

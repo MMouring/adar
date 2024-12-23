@@ -49,19 +49,3 @@ jobs:
         run: |
           node scripts/update-release-version.js ${{ github.event_name == 'workflow_dispatch' && inputs.bump_type || 'patch' }}
           
-      - name: Wait for PR creation and merge
-        run: |
-          # Wait for PR to be available (giving GitHub API time to process)
-          sleep 10
-          
-          # Get the latest PR number
-          PR_NUMBER=$(gh pr list --state open --base stage --json number --jq '.[0].number')
-          
-          if [ ! -z "$PR_NUMBER" ]; then
-            # Enable auto-merge
-            gh pr merge $PR_NUMBER --auto --merge
-            echo "Pull request #$PR_NUMBER set to auto-merge"
-          else
-            echo "No open pull request found"
-            exit 1
-          fi

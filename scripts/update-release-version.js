@@ -51,13 +51,28 @@ function bumpVersion(bumpType) {
     
     // Create pull request and wait for it to be available
     try {
-        // Create the PR with explicit auth
+        // Verify GitHub CLI auth status
+        try {
+            execSync('gh auth status', { stdio: 'inherit' });
+        } catch (authError) {
+            console.error('GitHub CLI authentication failed:', authError);
+            throw new Error('GitHub CLI is not properly authenticated');
+        }
+
+        // Create the PR with explicit auth and debug output
         const prCommand = `gh pr create --title "chore: Bump version to ${newVersion}" --body "Automated version bump to ${newVersion}" --base stage`;
-        execSync(prCommand, { 
-            env: { ...process.env },
-            stdio: 'inherit'
-        });
-        console.log(`Pull request created for version ${newVersion}`);
+        try {
+            execSync(prCommand, { 
+                env: { ...process.env },
+                stdio: 'inherit'
+            });
+            console.log(`Pull request created for version ${newVersion}`);
+        } catch (prError) {
+            console.error('Failed to create PR:', prError);
+            // Try to get more detailed error information
+            execSync('gh pr list --state open', { stdio: 'inherit' });
+            throw prError;
+        }
 
         // Poll for PR and merge it
         console.log('Waiting for PR to be available...');

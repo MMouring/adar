@@ -1051,7 +1051,7 @@ Resources:
   GoogleAdsEditorAccountFirehose:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
-      DeliveryStreamName: !FindInMap [Kinesis, DeliveryStreamName, GoogleAccount]
+      DeliveryStreamName: !Ref googleAccount
       DeliveryStreamType: DirectPut
       ExtendedS3DestinationConfiguration:
         BucketARN: arn:aws:s3:::data.ihsadvantage
@@ -1060,7 +1060,7 @@ Resources:
           SizeInMBs: 5
         CloudWatchLoggingOptions:
           Enabled: true
-          LogGroupName: !Sub /aws/kinesisfirehose/${!FindInMap [Kinesis, DeliveryStreamName, GoogleAccount]}
+          LogGroupName: !Sub /aws/kinesisfirehose/${googleAccount}
           LogStreamName: S3Delivery
         CompressionFormat: GZIP
         ErrorOutputPrefix: 'json/errors/google/account/error_type=!{firehose:error-output-type}/partition_date=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}/'

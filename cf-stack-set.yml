@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 
+  - AWS::Serverless-2016-10-31
+  - AWS::LanguageExtensions
+Description: Google Ads Editor StackSet
+
+Parameters:
+  debug:
+    Type: String
+    Default: False
+  stage:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+  googleAdsRefreshToken:
+    Type: String
+    Default: 1/PJnkY44BT-NZN6eCJFTbebDG1eCWMpeDhREkJ6W6C9I
+  googleAdsClientId:
+    Type: String
+    Default: 1031328113312-7881pntatrqo07idt3nk09euooo232t1.apps.googleusercontent.com
+  googleAdsClientSecret:
+    Type: String
+    Default: 5UtS9UWDA2vqzMfujOhiprOG
+  googleAdsDeveloperToken:
+    Type: String
+    Default: jh6jxvQqjtPGMfpd8Z1DgA
+  googleAdsLoginCustomerId:
+    Type: String
+    Default: 7864081494
+  
+Conditions:
+  CreateProdResources: !Equals [ !Ref stage, prod ]
+
+Mappings:
+  Layers:
+    stage:
+      GoogleAdsLayer: 'arn:aws:lambda:us-east-1:275193884268:layer:google-ads-layer:4'
+      BingAdsLayer: 'arn:aws:lambda:us-east-1:275193884268:layer:bing-ads-layer:4'
+    prod:
+      GoogleAdsLayer: 'arn:aws:lambda:us-east-1:170865245687:layer:google-ads-layer:1'
+      BingAdsLayer: 'arn:aws:lambda:us-east-1:170865245687:layer:bing-ads-layer:1'
+    dev:
+      GoogleAdsLayer: 'arn:aws:lambda:us-east-1:275193884268:layer:google-ads-layer:1'
+      BingAdsLayer: 'arn:aws:lambda:us-east-1:275193884268:layer:bing-ads-layer:1'
+  Kinesis:
+    DeliveryStreamName:
+      GoogleAccount: google-account
+      GoogleAccountLog: google-account-log
+      GoogleAd: google-ad
+      GoogleAdLog: google-ad-log
+      GoogleCampaign: google-campaign
+      GoogleCampaignLog: google-campaign-log
+      GoogleAdGroup: google-ad-group
+      GoogleAdGroupLog: google-ad-group-log
+      GoogleAsset: google-asset
+      GoogleAssetLog: google-asset-log
+      GoogleAssetSet: google-asset-set
+      GoogleAssetSetLog: google-asset-set-log
+      GoogleFeed: google-feed
+      GoogleFeedLog: google-feed-log
+      GoogleFeedItem: google-feed-item
+      GoogleFeedItemLog: google-feed-item-log
+      GoogleKeyword: google-keyword
+      GoogleKeywordLog: google-keyword-log
+      GoogleSharedSet: google-shared-set
+      GoogleSharedSetLog: google-shared-set-log
+      GoogleSharedSetKeyword: google-shared-set-keyword
+      GoogleSharedSetKeywordLog: google-shared-set-keyword-log

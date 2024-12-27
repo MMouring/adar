@@ -10,31 +10,80 @@ Parameters:
       - stage
       - prod
 
-Mappings:
-  StreamNames:
-    default:
-      GoogleAccount: google-account
-      GoogleAccountLog: google-account-log
-      GoogleAd: google-ad
-      GoogleAdLog: google-ad-log
-      GoogleCampaign: google-campaign
-      GoogleCampaignLog: google-campaign-log
-      GoogleAdGroup: google-ad-group
-      GoogleAdGroupLog: google-ad-group-log
-      GoogleAsset: google-asset
-      GoogleAssetLog: google-asset-log
-      GoogleAssetSet: google-asset-set
-      GoogleAssetSetLog: google-asset-set-log
-      GoogleFeed: google-feed
-      GoogleFeedLog: google-feed-log
-      GoogleFeedItem: google-feed-item
-      GoogleFeedItemLog: google-feed-item-log
-      GoogleKeyword: google-keyword
-      GoogleKeywordLog: google-keyword-log
-      GoogleSharedSet: google-shared-set
-      GoogleSharedSetKeyword: google-shared-set-keyword
-      GoogleSharedSetLog: google-shared-set-log
-      GoogleSharedSetKeywordLog: google-shared-set-keyword-log
+Parameters:
+  stage:
+    Type: String
+    Description: Deployment stage (dev, stage, prod)
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+  googleAccount:
+    Type: String
+    Default: google-account
+  googleAccountLog:
+    Type: String
+    Default: google-account-log
+  googleAd:
+    Type: String
+    Default: google-ad
+  googleAdLog:
+    Type: String
+    Default: google-ad-log
+  googleCampaign:
+    Type: String
+    Default: google-campaign
+  googleCampaignLog:
+    Type: String
+    Default: google-campaign-log
+  googleAdGroup:
+    Type: String
+    Default: google-ad-group
+  googleAdGroupLog:
+    Type: String
+    Default: google-ad-group-log
+  googleAsset:
+    Type: String
+    Default: google-asset
+  googleAssetLog:
+    Type: String
+    Default: google-asset-log
+  googleAssetSet:
+    Type: String
+    Default: google-asset-set
+  googleAssetSetLog:
+    Type: String
+    Default: google-asset-set-log
+  googleFeed:
+    Type: String
+    Default: google-feed
+  googleFeedLog:
+    Type: String
+    Default: google-feed-log
+  googleFeedItem:
+    Type: String
+    Default: google-feed-item
+  googleFeedItemLog:
+    Type: String
+    Default: google-feed-item-log
+  googleKeyword:
+    Type: String
+    Default: google-keyword
+  googleKeywordLog:
+    Type: String
+    Default: google-keyword-log
+  googleSharedSet:
+    Type: String
+    Default: google-shared-set
+  googleSharedSetKeyword:
+    Type: String
+    Default: google-shared-set-keyword
+  googleSharedSetLog:
+    Type: String
+    Default: google-shared-set-log
+  googleSharedSetKeywordLog:
+    Type: String
+    Default: google-shared-set-keyword-log
 
   Layers:
     stage:
@@ -71,7 +120,7 @@ Resources:
           GOOGLE_ADS_DEVELOPER_TOKEN: !Sub ${googleAdsDeveloperToken}
           GOOGLE_ADS_LOGIN_CUSTOMER_ID: !Sub ${googleAdsLoginCustomerId}
           GOOGLE_ADS_USE_PROTO_PLUS: true
-          GOOGLE_SHARED_SET_KEYWORD_LOG: !FindInMap [StreamNames, default, GoogleSharedSetKeywordLog]
+          GOOGLE_SHARED_SET_KEYWORD_LOG: !Ref googleSharedSetKeywordLog
       Layers:
         - !Sub ${!FindInMap [Layers, !Ref stage, GoogleAdsLayer]}
         - !Sub ${!FindInMap [Layers, !Ref stage, BingAdsLayer]}
@@ -79,7 +128,7 @@ Resources:
   GoogleAdsEditorSharedSetKeywordLogFirehose:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
-      DeliveryStreamName: !FindInMap [StreamNames, default, GoogleSharedSetKeywordLog]
+      DeliveryStreamName: !Ref googleSharedSetKeywordLog
       DeliveryStreamType: DirectPut
       ExtendedS3DestinationConfiguration:
         BucketARN: arn:aws:s3:::data.ihsadvantage
@@ -88,7 +137,7 @@ Resources:
           SizeInMBs: 5
         CloudWatchLoggingOptions:
           Enabled: true
-          LogGroupName: !Sub /aws/kinesisfirehose/${FindInMap [StreamNames, default, GOOGLE_SHARED_SET_KEYWORD_LOG]}
+          LogGroupName: !Sub /aws/kinesisfirehose/${googleSharedSetKeywordLog}
           LogStreamName: S3Delivery
         CompressionFormat: GZIP
         ErrorOutputPrefix: 'json/errors/google/shared-set-keyword-log/error_type=!{firehose:error-output-type}/partition_date=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}/'

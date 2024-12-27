@@ -11,6 +11,31 @@ Parameters:
       - prod
 
 Mappings:
+  StreamNames:
+    default:
+      GOOGLE_ACCOUNT: google-account
+      GOOGLE_ACCOUNT_LOG: google-account-log
+      GOOGLE_AD: google-ad
+      GOOGLE_AD_LOG: google-ad-log
+      GOOGLE_CAMPAIGN: google-campaign
+      GOOGLE_CAMPAIGN_LOG: google-campaign-log
+      GOOGLE_AD_GROUP: google-ad-group
+      GOOGLE_AD_GROUP_LOG: google-ad-group-log
+      GOOGLE_ASSET: google-asset
+      GOOGLE_ASSET_LOG: google-asset-log
+      GOOGLE_ASSET_SET: google-asset-set
+      GOOGLE_ASSET_SET_LOG: google-asset-set-log
+      GOOGLE_FEED: google-feed
+      GOOGLE_FEED_LOG: google-feed-log
+      GOOGLE_FEED_ITEM: google-feed-item
+      GOOGLE_FEED_ITEM_LOG: google-feed-item-log
+      GOOGLE_KEYWORD: google-keyword
+      GOOGLE_KEYWORD_LOG: google-keyword-log
+      GOOGLE_SHARED_SET: google-shared-set
+      GOOGLE_SHARED_SET_KEYWORD: google-shared-set-keyword
+      GOOGLE_SHARED_SET_LOG: google-shared-set-log
+      GOOGLE_SHARED_SET_KEYWORD_LOG: google-shared-set-keyword-log
+
   Layers:
     stage:
       GoogleAdsLayer: "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:google-ads-layer:4"

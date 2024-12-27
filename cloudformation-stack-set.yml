@@ -13,28 +13,28 @@ Parameters:
 Mappings:
   StreamNames:
     default:
-      GOOGLE_ACCOUNT: google-account
-      GOOGLE_ACCOUNT_LOG: google-account-log
-      GOOGLE_AD: google-ad
-      GOOGLE_AD_LOG: google-ad-log
-      GOOGLE_CAMPAIGN: google-campaign
-      GOOGLE_CAMPAIGN_LOG: google-campaign-log
-      GOOGLE_AD_GROUP: google-ad-group
-      GOOGLE_AD_GROUP_LOG: google-ad-group-log
-      GOOGLE_ASSET: google-asset
-      GOOGLE_ASSET_LOG: google-asset-log
-      GOOGLE_ASSET_SET: google-asset-set
-      GOOGLE_ASSET_SET_LOG: google-asset-set-log
-      GOOGLE_FEED: google-feed
-      GOOGLE_FEED_LOG: google-feed-log
-      GOOGLE_FEED_ITEM: google-feed-item
-      GOOGLE_FEED_ITEM_LOG: google-feed-item-log
-      GOOGLE_KEYWORD: google-keyword
-      GOOGLE_KEYWORD_LOG: google-keyword-log
-      GOOGLE_SHARED_SET: google-shared-set
-      GOOGLE_SHARED_SET_KEYWORD: google-shared-set-keyword
-      GOOGLE_SHARED_SET_LOG: google-shared-set-log
-      GOOGLE_SHARED_SET_KEYWORD_LOG: google-shared-set-keyword-log
+      GoogleAccount: google-account
+      GoogleAccountLog: google-account-log
+      GoogleAd: google-ad
+      GoogleAdLog: google-ad-log
+      GoogleCampaign: google-campaign
+      GoogleCampaignLog: google-campaign-log
+      GoogleAdGroup: google-ad-group
+      GoogleAdGroupLog: google-ad-group-log
+      GoogleAsset: google-asset
+      GoogleAssetLog: google-asset-log
+      GoogleAssetSet: google-asset-set
+      GoogleAssetSetLog: google-asset-set-log
+      GoogleFeed: google-feed
+      GoogleFeedLog: google-feed-log
+      GoogleFeedItem: google-feed-item
+      GoogleFeedItemLog: google-feed-item-log
+      GoogleKeyword: google-keyword
+      GoogleKeywordLog: google-keyword-log
+      GoogleSharedSet: google-shared-set
+      GoogleSharedSetKeyword: google-shared-set-keyword
+      GoogleSharedSetLog: google-shared-set-log
+      GoogleSharedSetKeywordLog: google-shared-set-keyword-log
 
   Layers:
     stage:
@@ -71,7 +71,7 @@ Resources:
           GOOGLE_ADS_DEVELOPER_TOKEN: !Sub ${googleAdsDeveloperToken}
           GOOGLE_ADS_LOGIN_CUSTOMER_ID: !Sub ${googleAdsLoginCustomerId}
           GOOGLE_ADS_USE_PROTO_PLUS: true
-          GOOGLE_SHARED_SET_KEYWORD_LOG: !FindInMap [StreamNames, default, GOOGLE_SHARED_SET_KEYWORD_LOG]
+          GOOGLE_SHARED_SET_KEYWORD_LOG: !FindInMap [StreamNames, default, GoogleSharedSetKeywordLog]
       Layers:
         - !Sub ${!FindInMap [Layers, !Ref stage, GoogleAdsLayer]}
         - !Sub ${!FindInMap [Layers, !Ref stage, BingAdsLayer]}
@@ -79,7 +79,7 @@ Resources:
   GoogleAdsEditorSharedSetKeywordLogFirehose:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
-      DeliveryStreamName: !FindInMap [StreamNames, default, GOOGLE_SHARED_SET_KEYWORD_LOG]
+      DeliveryStreamName: !FindInMap [StreamNames, default, GoogleSharedSetKeywordLog]
       DeliveryStreamType: DirectPut
       ExtendedS3DestinationConfiguration:
         BucketARN: arn:aws:s3:::data.ihsadvantage

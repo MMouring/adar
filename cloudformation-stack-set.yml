@@ -74,3 +74,22 @@ Resources:
       Layers:
         - !Sub ${!FindInMap [Layers, !Ref stage, GoogleAdsLayer]}
         - !Sub ${!FindInMap [Layers, !Ref stage, BingAdsLayer]}
+
+  GoogleAdsEditorSharedSetKeywordLogFirehose:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: !FindInMap [StreamNames, default, GOOGLE_SHARED_SET_KEYWORD_LOG]
+      DeliveryStreamType: DirectPut
+      ExtendedS3DestinationConfiguration:
+        BucketARN: arn:aws:s3:::data.ihsadvantage
+        BufferingHints:
+          IntervalInSeconds: 300
+          SizeInMBs: 5
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: !Sub /aws/kinesisfirehose/${FindInMap [StreamNames, default, GOOGLE_SHARED_SET_KEYWORD_LOG]}
+          LogStreamName: S3Delivery
+        CompressionFormat: GZIP
+        ErrorOutputPrefix: 'json/errors/google/shared-set-keyword-log/error_type=!{firehose:error-output-type}/partition_date=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}/'
+        Prefix: 'json/google/shared-set-keyword-log/partition_date=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}/'
+        RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/firehose_delivery_role'

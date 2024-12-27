@@ -630,7 +630,7 @@ Resources:
           GOOGLE_ADS_LOGIN_CUSTOMER_ID: !Sub ${googleAdsLoginCustomerId}
           GOOGLE_ADS_USE_PROTO_PLUS: true
           GOOGLE_SHARED_SET_KEYWORD: !FindInMap [Kinesis, DeliveryStreamName, GoogleSharedSetKeyword]
-          GOOGLE_SHARED_SET_KEYWORD_LOG: !FindInMap [Kinesis, DeliveryStreamName, GoogleSharedSetKeywordLog]
+          GOOGLE_SHARED_SET_KEYWORD_LOG: !Ref googleSharedSetKeywordLog
           
       Layers:
         - !FindInMap [Layers, !Ref stage, GoogleAdsLayer]

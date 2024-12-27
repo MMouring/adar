@@ -71,6 +71,7 @@ Resources:
           GOOGLE_ADS_DEVELOPER_TOKEN: !Sub ${googleAdsDeveloperToken}
           GOOGLE_ADS_LOGIN_CUSTOMER_ID: !Sub ${googleAdsLoginCustomerId}
           GOOGLE_ADS_USE_PROTO_PLUS: true
+          GOOGLE_SHARED_SET_KEYWORD_LOG: !FindInMap [StreamNames, default, GOOGLE_SHARED_SET_KEYWORD_LOG]
       Layers:
         - !Sub ${!FindInMap [Layers, !Ref stage, GoogleAdsLayer]}
         - !Sub ${!FindInMap [Layers, !Ref stage, BingAdsLayer]}

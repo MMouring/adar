@@ -9,15 +9,6 @@ Parameters:
       - dev
       - stage
       - prod
-
-Parameters:
-  stage:
-    Type: String
-    Description: Deployment stage (dev, stage, prod)
-    AllowedValues:
-      - dev
-      - stage
-      - prod
   googleAccount:
     Type: String
     Default: google-account

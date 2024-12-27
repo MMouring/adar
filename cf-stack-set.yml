@@ -87,12 +87,12 @@ Resources:
   GoogleAdsEditorAccountLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/kinesisfirehose/${!FindInMap [Kinesis, DeliveryStreamName, GoogleAccount]}
+      LogGroupName: !Sub /aws/kinesisfirehose/${googleAccount}
       RetentionInDays: 7
   GoogleAdsEditorAccountLogLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/kinesisfirehose/${!FindInMap [Kinesis, DeliveryStreamName, GoogleAccountLog]}
+      LogGroupName: !Sub /aws/kinesisfirehose/${googleAccountLog}
       RetentionInDays: 7
   GoogleAdsEditorAdLambdaLogGroup:
     Type: AWS::Logs::LogGroup
@@ -102,7 +102,7 @@ Resources:
   GoogleAdsEditorAdLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/kinesisfirehose/${!FindInMap [Kinesis, DeliveryStreamName, GoogleAd]}
+      LogGroupName: !Sub /aws/kinesisfirehose/${googleAd}
       RetentionInDays: 7
   GoogleAdsEditorAdLogGroup:
     Type: AWS::Logs::LogGroup

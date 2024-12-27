@@ -45,30 +45,6 @@ Mappings:
     dev:
       GoogleAdsLayer: 'arn:aws:lambda:us-east-1:275193884268:layer:google-ads-layer:1'
       BingAdsLayer: 'arn:aws:lambda:us-east-1:275193884268:layer:bing-ads-layer:1'
-  Kinesis:
-    DeliveryStreamName:
-      GoogleAccount: google-account
-      GoogleAccountLog: google-account-log
-      GoogleAd: google-ad
-      GoogleAdLog: google-ad-log
-      GoogleCampaign: google-campaign
-      GoogleCampaignLog: google-campaign-log
-      GoogleAdGroup: google-ad-group
-      GoogleAdGroupLog: google-ad-group-log
-      GoogleAsset: google-asset
-      GoogleAssetLog: google-asset-log
-      GoogleAssetSet: google-asset-set
-      GoogleAssetSetLog: google-asset-set-log
-      GoogleFeed: google-feed
-      GoogleFeedLog: google-feed-log
-      GoogleFeedItem: google-feed-item
-      GoogleFeedItemLog: google-feed-item-log
-      GoogleKeyword: google-keyword
-      GoogleKeywordLog: google-keyword-log
-      GoogleSharedSet: google-shared-set
-      GoogleSharedSetLog: google-shared-set-log
-      GoogleSharedSetKeyword: google-shared-set-keyword
-      GoogleSharedSetKeywordLog: google-shared-set-keyword-log
 
 Resources:
   GoogleAdsEditorCustomerConversionLambdaLogGroup:

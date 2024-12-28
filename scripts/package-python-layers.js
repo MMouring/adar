@@ -1,38 +1,46 @@
-const fs = require('fs').promises;
+const { execSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
 
-async function packagePythonLayers() {
-  const requirementsDir = 'requirements';
+const packageLayer = async (layerName, requirementsFile) => {
+  const tempDir = `./temp/${layerName}`;
+  const pythonPath = `${tempDir}/python`;
   
-  // Get all .txt files from requirements directory
-  const files = await fs.readdir(requirementsDir);
-  const requirementsFiles = files.filter(file => file.endsWith('.txt'));
+  console.log(`Packaging ${layerName}...`);
   
-  for (const reqFile of requirementsFiles) {
-    const layerName = path.basename(reqFile, '.txt');
-    const workDir = `python-layers/${layerName}`;
-    
-    // Create working directory structure
-    await exec(`rm -rf ${workDir}`);
-    await exec(`mkdir -p ${workDir}/python`);
-    
-    // Install requirements to python directory
-    console.log(`Installing requirements for ${layerName}...`);
-    await exec(
-      `pip install -r ${requirementsDir}/${reqFile} -t ${workDir}/python`
-    );
-    
-    // Create zip file
-    console.log(`Creating zip for ${layerName}...`);
-    await exec(
-      `cd ${workDir} && zip -r ../../${layerName}-layer.zip python/`,
-      { maxBuffer: 1024 * 1024 * 10 } // Increase buffer to 10MB
-    );
-    
-    console.log(`Successfully packaged ${layerName} layer`);
-  }
+  // Create directories
+  execSync(`rm -rf ${tempDir}`);
+  fs.mkdirSync(pythonPath, { recursive: true });
+  
+  // Install requirements
+  execSync(`pip install -r ${requirementsFile} -t ${pythonPath}`);
+  
+  // Create zip file
+  execSync(`cd ${tempDir} && zip -r ../${layerName}.zip python/`);
+  
+  // Upload to S3
+  const { DEFAULT_ACCOUNT, DEFAULT_REGION } = process.env;
+  execSync(
+    `aws s3 cp ./temp/${layerName}.zip \
+    s3://hotel-planner-deploy-${DEFAULT_ACCOUNT}-${DEFAULT_REGION}/${layerName}.zip`
+  );
+};
+
+const packagePythonLayers = async () => {
+  // Ensure temp directory exists
+  fs.mkdirSync('./temp', { recursive: true });
+  
+  // Package each layer
+  await packageLayer('google-ads-layer', './requirements/google-ads.txt');
+  await packageLayer('bing-ads-layer', './requirements/bing-ads.txt');
+  await packageLayer('pytz-layer', './requirements/pytz.txt');
+  
+  // Cleanup
+  execSync('rm -rf ./temp');
+};
+
+if (require.main === module) {
+  packagePythonLayers().catch(console.error);
 }
 
 module.exports = { packagePythonLayers };

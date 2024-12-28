@@ -1,6 +1,24 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 
+const assumeRole = () => {
+  const { AWS_DEPLOY_ARN } = process.env;
+  if (!AWS_DEPLOY_ARN) {
+    throw new Error('AWS_DEPLOY_ARN environment variable is required');
+  }
+
+  console.log('Assuming deployment role...');
+  const result = JSON.parse(
+    execSync(
+      `aws sts assume-role --role-arn ${AWS_DEPLOY_ARN} --role-session-name DeploySession`
+    ).toString()
+  );
+
+  process.env.AWS_ACCESS_KEY_ID = result.Credentials.AccessKeyId;
+  process.env.AWS_SECRET_ACCESS_KEY = result.Credentials.SecretAccessKey;
+  process.env.AWS_SESSION_TOKEN = result.Credentials.SessionToken;
+};
+
 const checkStackSetInstances = async (stackSetName, account, region) => {
   try {
     const result = execSync(
@@ -37,6 +55,9 @@ const updateStackSet = async (stackSetName, accounts, regions) => {
 
 const deploy = async () => {
   const { STACK_SET_NAME, TARGET_ACCOUNTS, TARGET_REGIONS } = process.env;
+  
+  // Assume deployment role
+  assumeRole();
   const accounts = TARGET_ACCOUNTS.split(',');
   const regions = TARGET_REGIONS.split(',');
 

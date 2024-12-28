@@ -1,17 +1,14 @@
-name: CloudFormation StackSet Deployment
+name: Deploy Lambda Layers
 
 on:
-  # Trigger on push to main branch
   push:
-    branches: 
-      - main
-      - stage
-  
-  # Allow manual triggers with environment selection
+    branches: [ main, stage ]
+  pull_request:
+    branches: [ main, stage ]
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target deployment environment'
+        description: 'Environment to deploy to'
         required: true
         default: 'dev'
         type: choice
@@ -20,95 +17,45 @@ on:
           - stage
           - prod
 
-# Environment variables used across jobs
-env:
-  AWS_DEPLOY_ARN: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}"
-  AWS_STACK_ADMIN_ARN: ${{ secrets.AWS_STACK_ADMIN_ARN }}
-  DEFAULT_ACCOUNT: ${{ vars.AWS_ACCOUNT_ID }}
-  DEFAULT_REGION: ${{ vars.AWS_REGION }}
-  TARGET_ACCOUNTS: ${{ vars.TARGET_ACCOUNTS }}
-  TARGET_REGIONS: ${{ vars.TARGET_REGIONS }}
-  ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
-  STACK_SET_NAME: "hotel-planner-python-lambda-layers-stack-set"
-  
-# Required permissions for OIDC authentication
 permissions:
-  id-token: write   # Required for AWS OIDC auth
-  contents: read    # Required for checkout
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
-    name: Deploy to AWS
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
-    
+
+    env:
+      AWS_DEPLOY_ARN: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}"
+      AWS_STACK_ADMIN_ARN: ${{ secrets.AWS_STACK_ADMIN_ARN }}
+      DEFAULT_ACCOUNT: ${{ vars.AWS_ACCOUNT_ID }}
+      DEFAULT_REGION: ${{ vars.AWS_REGION }}
+      TARGET_ACCOUNTS: ${{ vars.TARGET_ACCOUNTS }}
+      TARGET_REGIONS: ${{ vars.TARGET_REGIONS }}
+      ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
+      STACK_SET_NAME: "hotel-planner-google-ads-editor-stack-set"
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js environment
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
-          
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.AWS_DEPLOY_ARN }}
+          role-to-assume: ${{ env.AWS_STACK_ADMIN_ARN }}
           aws-region: ${{ env.DEFAULT_REGION }}
-          
-      - name: Install project dependencies
-        run: npm ci
-        
-      - name: Run test suite
-        run: npm test
-        env:
-          npm_config_skiptests: ${{ github.event.inputs.environment == 'prod' && 'false' || 'true' }}
-          
-      - name: Deploy CloudFormation stack
+
+      - name: Package Python Layers
+        run: npm run package:python-layers
+
+      - name: Deploy Stack Set
         run: npm run deploy
-        env:
-          npm_package_config_env: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
-          npm_package_config_accounts: ${{ env.TARGET_ACCOUNTS }}
-          npm_package_config_regions: ${{ env.TARGET_REGIONS }}
-
-  release:
-    needs: deploy
-    name: Create Release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    if: github.ref_name == 'main' && success()
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-          
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          
-      - name: Get version from package.json
-        id: version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Read Release Notes
-        id: release-notes
-        run: |
-          NOTES=$(cat release.txt)
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: Release v${{ steps.version.outputs.version }}
-          body: ${{ steps.release-notes.outputs.notes }}
-          draft: false
-          prerelease: false
-          token: ${{ github.token }}

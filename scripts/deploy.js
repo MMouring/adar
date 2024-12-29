@@ -3,6 +3,8 @@ const {
   UpdateStackSetCommand,
   CreateStackSetCommand,
   CreateStackInstancesCommand,
+  DeleteStackInstancesCommand,
+  DeleteStackSetCommand,
   DescribeStackSetOperationCommand,
   ListStackSetOperationResultsCommand
 } = require('@aws-sdk/client-cloudformation')
@@ -420,13 +422,84 @@ async function deploy() {
   console.log('Stack set updated successfully')
 }
 
+async function cleanup() {
+  const sts = new STSClient()
+  
+  // Assume StackSet Administration Role
+  console.log('Assuming StackSet Administration Role for cleanup')
+  const credentials = await sts.send(
+    new AssumeRoleCommand({
+      RoleArn: AWS_STACK_ADMIN_ARN,
+      RoleSessionName: 'StackSetCleanupSession'
+    })
+  )
+
+  // Configure CloudFormation client with assumed role credentials
+  const cfnWithRole = new CloudFormationClient({
+    credentials: {
+      accessKeyId: credentials.Credentials.AccessKeyId,
+      secretAccessKey: credentials.Credentials.SecretAccessKey,
+      sessionToken: credentials.Credentials.SessionToken
+    }
+  })
+
+  const accounts = TARGET_ACCOUNTS.split(',')
+  const regions = TARGET_REGIONS.split(',')
+
+  try {
+    // Delete stack instances first
+    console.log('Deleting stack instances...')
+    const deleteInstancesResponse = await cfnWithRole.send(
+      new DeleteStackInstancesCommand({
+        StackSetName: STACK_SET_NAME,
+        Accounts: accounts,
+        Regions: regions,
+        RetainStacks: false,
+        OperationPreferences: {
+          FailureTolerancePercentage: 100,
+          MaxConcurrentPercentage: 100,
+          RegionConcurrencyType: 'PARALLEL'
+        }
+      })
+    )
+
+    await waitForStackSetOperation(
+      cfnWithRole,
+      deleteInstancesResponse.OperationId,
+      STACK_SET_NAME
+    )
+
+    // Delete the stack set itself
+    console.log('Deleting stack set...')
+    await cfnWithRole.send(
+      new DeleteStackSetCommand({
+        StackSetName: STACK_SET_NAME
+      })
+    )
+
+    console.log('Cleanup completed successfully')
+  } catch (error) {
+    console.error('Error during cleanup:', error)
+    throw error
+  }
+}
+
 const command = args[0]
 if (command === '--debug') {
   // If --debug is the first argument, take the second as the command
   command = args[1]
 }
 
-if (command === 'package') {
+if (command === 'cleanup') {
+  (async () => {
+    try {
+      await cleanup()
+    } catch (error) {
+      console.error('Cleanup failed:', error)
+      process.exit(1)
+    }
+  })()
+} else if (command === 'package') {
   packageAndUpload()
 } else if (command === 'deploy') {
   ; (async () => {
@@ -439,6 +512,6 @@ if (command === 'package') {
     }
   })()
 } else {
-  console.error('Unknown command. Use "package" or "deploy"')
+  console.error('Unknown command. Use "package", "deploy", or "cleanup"')
   process.exit(1)
 }

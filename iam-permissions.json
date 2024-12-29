@@ -25,10 +25,13 @@
                 "cloudformation:CreateStackSet",
                 "cloudformation:UpdateStackSet",
                 "cloudformation:CreateStackInstances",
+                "cloudformation:DeleteStackSet",
+                "cloudformation:DeleteStackInstances",
                 "cloudformation:DescribeStackSetOperation",
                 "cloudformation:ListStackSetOperationResults",
                 "cloudformation:DescribeStackSet",
-                "cloudformation:DescribeStackInstance"
+                "cloudformation:DescribeStackInstance",
+                "cloudformation:ListStackInstances"
             ],
             "Resource": "*"
         },

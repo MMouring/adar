@@ -19,8 +19,15 @@ const {
   TARGET_REGIONS,
   STACK_SET_NAME,
   AWS_STACK_ADMIN_ARN,
-  BUILD_START_TIME
+  BUILD_START_TIME,
+  DEBUG
 } = process.env
+
+const debug = (message, ...args) => {
+  if (DEBUG === 'true') {
+    console.log(`[DEBUG] ${message}`, ...args);
+  }
+}
 
 if (!ENV || !TARGET_ACCOUNTS || !TARGET_REGIONS || !AWS_STACK_ADMIN_ARN || !BUILD_START_TIME) {
   console.error('Required environment variables not set:')
@@ -46,6 +53,11 @@ async function packageAndUpload() {
     })
   )
 
+  debug('Assumed role credentials:', {
+    AccessKeyId: credentials.Credentials.AccessKeyId,
+    Expiration: credentials.Credentials.Expiration
+  });
+
   // Configure S3 client with assumed role credentials
   const s3 = new S3Client({
     credentials: {
@@ -54,6 +66,8 @@ async function packageAndUpload() {
       sessionToken: credentials.Credentials.SessionToken
     }
   })
+  
+  debug('S3 client configured with assumed role');
 
   const accounts = TARGET_ACCOUNTS.split(',')
   const regions = TARGET_REGIONS.split(',')
@@ -108,6 +122,7 @@ async function waitForStackSetOperation(
   operationId,
   stackSetName
 ) {
+  debug('Starting operation wait loop', { operationId, stackSetName });
   console.log(`Waiting for stack set operation ${operationId} to complete...`)
 
   while (true) {

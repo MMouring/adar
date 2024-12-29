@@ -19,12 +19,15 @@ const {
   TARGET_REGIONS,
   STACK_SET_NAME,
   AWS_STACK_ADMIN_ARN,
-  BUILD_START_TIME,
-  DEBUG
+  BUILD_START_TIME
 } = process.env
 
+// Parse command line arguments
+const args = process.argv.slice(2);
+const DEBUG = args.includes('--debug');
+
 const debug = (message, ...args) => {
-  if (DEBUG === 'true') {
+  if (DEBUG) {
     console.log(`[DEBUG] ${message}`, ...args);
   }
 }
@@ -409,7 +412,12 @@ async function deploy() {
   console.log('Stack set updated successfully')
 }
 
-const command = process.argv[2]
+const command = args[0]
+if (command === '--debug') {
+  // If --debug is the first argument, take the second as the command
+  command = args[1]
+}
+
 if (command === 'package') {
   packageAndUpload()
 } else if (command === 'deploy') {

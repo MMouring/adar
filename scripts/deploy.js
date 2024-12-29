@@ -160,8 +160,9 @@ async function waitForStackSetOperation(
       // Check for various resource conflicts
       if (operation.StackSetOperation.StatusReason &&
           (operation.StackSetOperation.StatusReason.includes('already exists') ||
-           operation.StackSetOperation.StatusReason.includes('ResourceStatusReason'))) {
-        console.log('Detected existing resource conflict, checking details...');
+           operation.StackSetOperation.StatusReason.includes('ResourceStatusReason') ||
+           operation.StackSetOperation.StatusReason.includes('UPDATE_ROLLBACK_FAILED'))) {
+        console.log('Detected stack issue, checking details...');
         
         const results = await cfnWithRole.send(
           new ListStackSetOperationResultsCommand({
@@ -301,9 +302,10 @@ async function deploy() {
             Accounts: accounts,
             Regions: regions,
             OperationPreferences: {
-              FailureTolerancePercentage: 0,
+              FailureTolerancePercentage: 100, // Allow failures to handle UPDATE_ROLLBACK_FAILED stacks
               MaxConcurrentPercentage: 100,
-              RegionConcurrencyType: 'SEQUENTIAL'
+              RegionConcurrencyType: 'SEQUENTIAL',
+              RegionOrder: ['us-east-1'] // Prioritize primary region
             },
             PermissionModel: 'SELF_MANAGED',
             AdministrationRoleARN: AWS_STACK_ADMIN_ARN,

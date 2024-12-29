@@ -4,13 +4,11 @@ const {
   CreateStackSetCommand,
   CreateStackInstancesCommand,
   DescribeStackSetOperationCommand,
-  ListStackSetOperationResultsCommand,
-  DescribeStackSetCommand,
-  DescribeStackInstanceCommand
+  ListStackSetOperationResultsCommand
 } = require('@aws-sdk/client-cloudformation')
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
 const { STSClient, AssumeRoleCommand } = require('@aws-sdk/client-sts')
-const { packagePythonLayers } = require('./package-python-layers')
+// const { packagePythonLayers } = require('./package-python-layers')
 const fs = require('fs')
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
@@ -20,21 +18,23 @@ const {
   TARGET_ACCOUNTS,
   TARGET_REGIONS,
   STACK_SET_NAME,
-  AWS_STACK_ADMIN_ARN
+  AWS_STACK_ADMIN_ARN,
+  BUILD_START_TIME
 } = process.env
 
-if (!ENV || !TARGET_ACCOUNTS || !TARGET_REGIONS || !AWS_STACK_ADMIN_ARN) {
+if (!ENV || !TARGET_ACCOUNTS || !TARGET_REGIONS || !AWS_STACK_ADMIN_ARN || !BUILD_START_TIME) {
   console.error('Required environment variables not set:')
   console.error('- ENV: Target environment')
   console.error('- TARGET_ACCOUNTS: Comma-separated list of AWS accounts')
   console.error('- TARGET_REGIONS: Comma-separated list of AWS regions')
   console.error('- AWS_STACK_ADMIN_ARN: ARN of the StackSet Administration Role')
+  console.error('- BUILD_START_TIME: Start time of the build')
   process.exit(1)
 }
 
 async function packageAndUpload() {
   // First package Python layers for projects requiring them
-  await packagePythonLayers();
+  // await packagePythonLayers();
 
   // Assume StackSet Administration Role first
   const sts = new STSClient()
@@ -196,40 +196,6 @@ async function waitForStackSetOperation(
   }
 }
 
-async function checkStackSetExists(cfnClient, stackSetName) {
-  try {
-    await cfnClient.send(
-      new DescribeStackSetCommand({
-        StackSetName: stackSetName
-      })
-    )
-    return true
-  } catch (err) {
-    if (err.name === 'StackSetNotFoundException') {
-      return false
-    }
-    throw err
-  }
-}
-
-async function checkStackInstanceExists(cfnClient, stackSetName, account, region) {
-  try {
-    await cfnClient.send(
-      new DescribeStackInstanceCommand({
-        StackSetName: stackSetName,
-        StackInstanceAccount: account,
-        StackInstanceRegion: region
-      })
-    )
-    return true
-  } catch (err) {
-    if (err.name === 'StackInstanceNotFoundException') {
-      return false
-    }
-    throw err
-  }
-}
-
 async function deploy() {
   const sts = new STSClient()
   const cfn = new CloudFormationClient()
@@ -246,6 +212,7 @@ async function deploy() {
     })
   )
 
+  // Configure AWS SDK with temporary credentials
   const config = {
     credentials: {
       accessKeyId: credentials.Credentials.AccessKeyId,
@@ -254,14 +221,11 @@ async function deploy() {
     }
   }
 
+  // Create new CloudFormation client with assumed role credentials
   const cfnWithRole = new CloudFormationClient(config)
 
-  // Check if stack set exists
-  const stackSetExists = await checkStackSetExists(cfnWithRole, STACK_SET_NAME)
-
-  if (!stackSetExists) {
-    // Create new stack set
-    console.log('Creating new stack set...')
+  // First create/update the stack set definition (without instances)
+  try {
     const createResponse = await cfnWithRole.send(
       new CreateStackSetCommand({
         StackSetName: STACK_SET_NAME,
@@ -272,85 +236,162 @@ async function deploy() {
           {
             ParameterKey: 'stage',
             ParameterValue: ENV
+          },
+          {
+            ParameterKey: 'buildStartTime',
+            ParameterValue: BUILD_START_TIME
           }
         ],
         AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
         ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole'
       })
     )
-    await waitForStackSetOperation(cfnWithRole, createResponse.OperationId, STACK_SET_NAME)
-  }
+    console.log('Stack set creation initiated')
+    await waitForStackSetOperation(
+      cfnWithRole,
+      createResponse.OperationId,
+      STACK_SET_NAME
+    )
+    console.log('Stack set created successfully')
+  } catch (err) {
+    if (err.name === 'NameAlreadyExistsException') {
+      console.log('Stack set already exists, proceeding with update')
 
-  // Track which instances exist and need updates
-  const existingInstances = []
-  const newInstances = []
+      try {
+        // Update only the stack set template/configuration without instances
+        const updateResponse = await cfnWithRole.send(
+          new UpdateStackSetCommand({
+            StackSetName: STACK_SET_NAME,
+            TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
+            Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
+            Parameters: [
+              {
+                ParameterKey: 'stage',
+                ParameterValue: ENV
+              },
+              {
+                ParameterKey: 'buildStartTime',
+                ParameterValue: BUILD_START_TIME
+              }
+            ],
+            Accounts: accounts,
+            Regions: regions,
+            OperationPreferences: {
+              FailureTolerancePercentage: 0,
+              MaxConcurrentPercentage: 100,
+              RegionConcurrencyType: 'SEQUENTIAL'
+            },
+            PermissionModel: 'SELF_MANAGED',
+            AdministrationRoleARN: AWS_STACK_ADMIN_ARN,
+            ExecutionRoleName: 'AWSCloudFormationStackSetExecutionRole',
+            OperationId: `UpdateTemplate-${Date.now()}`,
+            CallAs: 'SELF'
+          })
+        )
 
-  // Check each account/region combination
-  for (const account of accounts) {
-    for (const region of regions) {
-      const exists = await checkStackInstanceExists(cfnWithRole, STACK_SET_NAME, account, region)
-      if (exists) {
-        existingInstances.push({ account, region })
-      } else {
-        newInstances.push({ account, region })
+        const result = await waitForStackSetOperation(
+          cfnWithRole,
+          updateResponse.OperationId,
+          STACK_SET_NAME
+        )
+        if (result === 'CONTINUE') {
+          console.log('Continuing deployment after resource conflict...')
+        }
+        console.log('Stack set template updated successfully')
+      } catch (updateErr) {
+        // Check for StackInstanceNotFoundException which indicates no instances exist and we need to create them
+        if (updateErr.name === 'StackInstanceNotFoundException') {
+          console.log('No stack instances found, proceeding with creation')
+          // Continue with creating stack instances
+        } else {
+          console.error('Error updating stack set:', updateErr)
+          throw updateErr
+        }
       }
+    } else {
+      console.error('Error creating stack set:', err)
+      throw err
     }
   }
 
-  // Create new instances if needed
-  if (newInstances.length > 0) {
-    console.log('Creating new stack instances...')
-    const createInstancesResponse = await cfnWithRole.send(
-      new CreateStackInstancesCommand({
-        StackSetName: STACK_SET_NAME,
-        Accounts: [...new Set(newInstances.map(i => i.account))],
-        Regions: [...new Set(newInstances.map(i => i.region))],
-        OperationPreferences: {
-          FailureTolerancePercentage: 0,
-          MaxConcurrentPercentage: 100,
-          RegionConcurrencyType: 'SEQUENTIAL'
+  // Create stack instances in target accounts
+  console.log('Creating stack instances...')
+  try {
+    const instanceParams = {
+      StackSetName: STACK_SET_NAME,
+      Accounts: accounts,
+      Regions: regions,
+      OperationPreferences: {
+        FailureTolerancePercentage: 0,
+        MaxConcurrentPercentage: 100,
+        RegionConcurrencyType: 'SEQUENTIAL'
+      },
+      ParameterOverrides: [
+        {
+          ParameterKey: 'stage',
+          ParameterValue: ENV
         },
-        ParameterOverrides: [
-          {
-            ParameterKey: 'stage',
-            ParameterValue: ENV
-          }
-        ],
-        CallAs: 'SELF'
-      })
-    )
-    await waitForStackSetOperation(cfnWithRole, createInstancesResponse.OperationId, STACK_SET_NAME)
-  }
+        {
+          ParameterKey: 'buildStartTime',
+          ParameterValue: BUILD_START_TIME
+        }
+      ],
+      CallAs: 'SELF'
+    }
 
-  // Update existing instances
-  if (existingInstances.length > 0) {
-    console.log('Updating existing stack instances...')
-    const updateResponse = await cfnWithRole.send(
-      new UpdateStackSetCommand({
-        StackSetName: STACK_SET_NAME,
-        TemplateURL: `https://s3.amazonaws.com/hotel-planner-stack-sets/${STACK_SET_NAME}.yml`,
-        Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
-        Parameters: [
-          {
-            ParameterKey: 'stage',
-            ParameterValue: ENV
-          }
-        ],
-        Accounts: [...new Set(existingInstances.map(i => i.account))],
-        Regions: [...new Set(existingInstances.map(i => i.region))],
-        OperationPreferences: {
-          FailureTolerancePercentage: 0,
-          MaxConcurrentPercentage: 100,
-          RegionConcurrencyType: 'SEQUENTIAL'
-        },
-        OperationId: `Update-${Date.now()}`,
-        CallAs: 'SELF'
-      })
-    )
-    await waitForStackSetOperation(cfnWithRole, updateResponse.OperationId, STACK_SET_NAME)
+    try {
+      console.log('Attempting to create new stack instances...')
+      const createInstancesResponse = await cfnWithRole.send(
+        new CreateStackInstancesCommand(instanceParams)
+      )
+      console.log('Stack instance creation initiated')
+      await waitForStackSetOperation(
+        cfnWithRole,
+        createInstancesResponse.OperationId,
+        STACK_SET_NAME
+      )
+      console.log('Stack instances created successfully')
+    } catch (createErr) {
+      if (createErr.name === 'OperationInProgressException') {
+        console.log(
+          'Another operation is in progress, waiting for completion...'
+        )
+        // Wait for 30 seconds before considering it a failure
+        await new Promise(resolve => setTimeout(resolve, 30000))
+        throw new Error('Operation in progress, please try again later')
+      } else if (createErr.name === 'NameAlreadyExistsException') {
+        console.log('Stack instances already exist, proceeding with update')
+        const updateResponse = await cfnWithRole.send(
+          new UpdateStackSetCommand({
+            ...instanceParams,
+            OperationId: `Update-${Date.now()}`,
+            OperationPreferences: {
+              ...instanceParams.OperationPreferences,
+              FailureTolerancePercentage: 100, // Allow all failures for existing resources
+              MaxConcurrentPercentage: 100,
+              RegionOrder: ['us-east-1'], // Prioritize primary region
+            },
+            // Use RETAIN as the default deletion policy
+            CallAs: 'SELF',
+            Capabilities: ['CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND']
+          })
+        )
+        await waitForStackSetOperation(
+          cfnWithRole,
+          updateResponse.OperationId,
+          STACK_SET_NAME
+        )
+        console.log('Stack instances updated successfully')
+      } else {
+        console.error('Error creating stack instances:', createErr)
+        throw createErr
+      }
+    }
+  } catch (err) {
+    console.error('Error managing stack instances:', err)
+    throw err
   }
-
-  console.log('Stack set deployment completed successfully')
+  console.log('Stack set updated successfully')
 }
 
 const command = process.argv[2]

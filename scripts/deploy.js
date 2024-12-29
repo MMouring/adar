@@ -8,7 +8,7 @@ const {
 } = require('@aws-sdk/client-cloudformation')
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
 const { STSClient, AssumeRoleCommand } = require('@aws-sdk/client-sts')
-// const { packagePythonLayers } = require('./package-python-layers')
+const { packagePythonLayers } = require('./package-python-layers')
 const fs = require('fs')
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
@@ -50,7 +50,7 @@ if (!ENV || !TARGET_ACCOUNTS || !TARGET_REGIONS || !AWS_STACK_ADMIN_ARN || !BUIL
 
 async function packageAndUpload() {
   // First package Python layers for projects requiring them
-  // await packagePythonLayers();
+  await packagePythonLayers();
 
   // Assume StackSet Administration Role first
   const sts = new STSClient()

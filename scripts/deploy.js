@@ -26,6 +26,12 @@ const {
 const args = process.argv.slice(2);
 const DEBUG = args.includes('--debug');
 
+// Enable AWS SDK debug logging if --debug flag is present
+if (DEBUG) {
+  process.env.AWS_SDK_DEBUG = 'true';
+  process.env.AWS_LOGGER_LEVEL = 'debug';
+}
+
 const debug = (message, ...args) => {
   if (DEBUG) {
     console.log(`[DEBUG] ${message}`, ...args);

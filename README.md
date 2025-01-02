@@ -1,13 +1,162 @@
-## Production
-### deploy
-Commit changes.
-The build is initiated by updating the version. This updates the version, tags and pushes to master, and pushes to release branch.
-```sh
-$ npm version patch|minor|major
-```
-The build will need to be approved in CodePipeline for it to be deployed to the production stage.
+# Google Ads Editor Lambda Functions
 
-#cd ~ && ln -s google-ads-7864081494.yaml google-ads.yaml
+A serverless application for managing Google Ads campaigns across multiple AWS accounts and regions using Lambda functions and CloudFormation StackSets.
+
+## Overview
+
+This project provides a suite of Lambda functions for managing various aspects of Google Ads campaigns:
+
+- Account management
+- Campaign management
+- Ad Group operations
+- Ad creation and updates
+- Keyword management
+- Performance reporting
+- Asset management
+- Feed management
+
+## Architecture
+
+### Key Components
+
+- **Lambda Functions**: Python-based functions for different Google Ads operations
+- **CloudFormation StackSet**: Manages multi-account/region deployment
+- **Kinesis Firehose**: Handles data streaming to S3
+- **CloudWatch**: Monitoring and alerting
+- **IAM Roles**: Secure access management
+
+### Environment Support
+
+- Development
+- Staging 
+- Production
+
+## Deployment
+
+### Prerequisites
+
+- Node.js 20+
+- AWS CLI configured
+- Required environment variables:
+  ```
+  AWS_ACCOUNT_ID
+  AWS_REGION
+  AWS_ROLE_NAME
+  AWS_STACK_ADMIN_ARN
+  TARGET_ACCOUNTS
+  TARGET_REGIONS
+  ```
+
+### Installation
+
+```bash
+npm ci
+```
+
+### Deploy to Development
+
+```bash
+npm run deploy
+```
+
+### Production Deployment
+
+1. Commit your changes
+2. Update version and trigger deployment:
+```bash
+npm version patch|minor|major
+```
+3. The deployment will require approval in CodePipeline for production stage
+
+## Lambda Functions
+
+### Performance Reporting
+- `google-ads-editor-ad-performance`
+- `google-ads-editor-ad-group-performance`
+- `google-ads-editor-keyword-performance`
+- `google-ads-editor-customer-conversion`
+
+### Campaign Management
+- `google-ads-editor-campaign`
+- `google-ads-editor-ad-group`
+- `google-ads-editor-ad`
+- `google-ads-editor-keyword`
+
+### Asset Management
+- `google-ads-editor-asset`
+- `google-ads-editor-asset-set`
+- `google-ads-editor-feed`
+- `google-ads-editor-feed-item`
+
+### Account Operations
+- `google-ads-editor-account`
+- `google-ads-editor-shared-set`
+- `google-ads-editor-shared-set-keyword`
+
+## Monitoring
+
+### CloudWatch Alarms
+
+Each Lambda function has associated CloudWatch alarms that trigger on:
+- Function errors
+- Duration thresholds
+- Invocation failures
+
+### Logging
+
+- Lambda function logs are retained for 7 days
+- Kinesis Firehose delivery logs for data streaming
+- CloudWatch Log groups for each function
+
+## Data Flow
+
+1. Lambda functions process Google Ads API requests
+2. Data is streamed through Kinesis Firehose
+3. Compressed (GZIP) data is stored in S3
+4. Log data is separated by environment and data type
+
+## Security
+
+- IAM roles with least privilege access
+- Environment-specific credentials
+- Secure parameter storage for Google Ads API credentials
+- Cross-account role assumption for multi-account deployment
+
+## Development
+
+### Adding New Functions
+
+1. Create Lambda function in `cloudformation-stack-set.yml`
+2. Add corresponding IAM permissions
+3. Create CloudWatch log group
+4. Add function aliases for staging/prod
+5. Configure monitoring alarms
+
+### Testing
+
+```bash
+npm test
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Deployment Failures**
+   - Verify AWS credentials
+   - Check CloudFormation stack events
+   - Validate IAM permissions
+
+2. **Function Errors**
+   - Check CloudWatch logs
+   - Verify Google Ads API credentials
+   - Check function timeout settings
+
+## Version History
+
+See [Releases](../../releases) for detailed changelog.
+
+Current version: 1.1.1
 #MCC 7864081494
 export GOOGLE_ADS_REFRESH_TOKEN=1/PJnkY44BT-NZN6eCJFTbebDG1eCWMpeDhREkJ6W6C9I
 export GOOGLE_ADS_CLIENT_ID=1031328113312-7881pntatrqo07idt3nk09euooo232t1.apps.googleusercontent.com

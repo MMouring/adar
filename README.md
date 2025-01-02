@@ -1,35 +1,45 @@
 # Google Ads Editor Lambda Functions
 
-A serverless application for managing Google Ads campaigns across multiple AWS accounts and regions using Lambda functions and CloudFormation StackSets.
+This repository manages Lambda functions for Google Ads campaign management across multiple AWS accounts and regions. It provides a comprehensive suite of serverless functions for automated Google Ads operations and reporting.
 
-## Overview
+## Current Functions
 
-This project provides a suite of Lambda functions for managing various aspects of Google Ads campaigns:
+### Performance Reporting
+- **Ad Performance** - Detailed ad-level performance metrics
+- **Ad Group Performance** - Ad group analytics and reporting
+- **Keyword Performance** - Keyword-level performance tracking
+- **Customer Conversion** - Conversion tracking and analysis
 
-- Account management
-- Campaign management
-- Ad Group operations
-- Ad creation and updates
-- Keyword management
-- Performance reporting
-- Asset management
-- Feed management
+### Campaign Management
+- **Campaign Operations** - Create/update/manage campaigns
+- **Ad Group Operations** - Ad group configuration and management
+- **Ad Management** - Create and optimize ad content
+- **Keyword Management** - Keyword targeting and optimization
+
+### Asset Management
+- **Asset Operations** - Manage creative assets
+- **Asset Set Management** - Handle asset collections
+- **Feed Management** - Data feed configuration
+- **Feed Item Operations** - Individual feed item management
 
 ## Architecture
 
+The project uses AWS CloudFormation StackSets to deploy Lambda functions across multiple AWS accounts and regions, ensuring consistent campaign management across your infrastructure.
+
 ### Key Components
 
-- **Lambda Functions**: Python-based functions for different Google Ads operations
-- **CloudFormation StackSet**: Manages multi-account/region deployment
-- **Kinesis Firehose**: Handles data streaming to S3
-- **CloudWatch**: Monitoring and alerting
-- **IAM Roles**: Secure access management
+- **Lambda Functions** - Python-based functions for Google Ads operations
+- **CloudFormation StackSet** - Multi-account/region deployment
+- **Kinesis Firehose** - Real-time data streaming to S3
+- **CloudWatch** - Comprehensive monitoring and alerting
+- **IAM Roles** - Secure access management
 
 ### Environment Support
 
-- Development
-- Staging 
-- Production
+Deployments are managed through Git branches:
+- `main` branch → Production
+- `stage` branch → Staging
+- Other branches → Development
 
 ## Deployment
 

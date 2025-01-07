@@ -1,11 +1,14 @@
 import io
+from typing import Dict, Union, BinaryIO
+
 from PIL import Image
-from typing import Tuple, Dict, Union, BinaryIO
+
+from src.utils.aws import s3
 
 
 class ImageProcessor:
     def __init__(self):
-        self.s3_service = s3_operations.S3Operations()
+        self.s3_service = s3.S3Operations()
 
     async def get_image_size(self, image: Union[bytes, BinaryIO]) -> Dict[str, int]:
         """

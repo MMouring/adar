@@ -4,6 +4,8 @@ import hashlib
 import hmac
 from typing import Dict, List
 
+from src.utils.image import image_handler
+
 class ConcurrencyLimiter:
     """Simple semaphore-based concurrency limiter"""
     def __init__(self, limit: int):
@@ -32,7 +34,7 @@ class LambdaHandler:
 
         try:
             result = await limiter.run(
-                processor_service.handler,
+                image_handler.ImageHandler().handler,
                 {
                     'image': {
                         'url': record['url'],

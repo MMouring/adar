@@ -1,5 +1,5 @@
-import boto3
 from botocore.exceptions import ClientError
+import boto3
 
 class S3Operations:
     def __init__(self):

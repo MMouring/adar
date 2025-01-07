@@ -1,10 +1,14 @@
 import hashlib
 import hmac
-from urllib.parse import urlparse
-import aiohttp
+import io
 import asyncio
 from typing import Dict, List, Union, Optional
-import io
+from urllib.parse import urlparse
+
+import aiohttp
+
+from src.utils.image import image_processor
+from src.utils.aws import s3
 
 class ImageHandler:
     ORIGINAL_PREFIX = 'original'
@@ -18,7 +22,7 @@ class ImageHandler:
 
     def __init__(self):
         self.image_service = image_processor.ImageProcessor()
-        self.s3_service = s3_operations.S3Operations()
+        self.s3_service = s3.S3Operations()
         self.timeout = aiohttp.ClientTimeout(total=60)  # 60 second timeout
 
     def get_resize_key(self, key: str, resize: Dict) -> str:

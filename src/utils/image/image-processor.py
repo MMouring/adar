@@ -10,7 +10,7 @@ class ImageProcessor:
     def __init__(self):
         self.s3_service = s3.S3Operations()
 
-    async def get_image_size(self, image: Union[bytes, BinaryIO]) -> Dict[str, int]:
+    def get_image_size(self, image: Union[bytes, BinaryIO]) -> Dict[str, int]:
         """
         Get the dimensions of an image
 
@@ -26,7 +26,7 @@ class ImageProcessor:
         except Exception as err:
             raise err
 
-    async def resize_image(
+    def resize_image(
         self,
         image: Union[bytes, BinaryIO],
         image_type: str,
@@ -117,7 +117,7 @@ class ImageProcessor:
             height = scaled_height
 
         # Transform the image buffer in memory
-        buffer = await self.resize_image(
+        buffer = self.resize_image(
             image,
             image_type,
             scaled_width,
@@ -127,7 +127,7 @@ class ImageProcessor:
         )
 
         # Upload to S3
-        return await self.s3_service.put_object({
+        return self.s3_service.put_object({
             'Key': f"{int(width)}/{int(height)}/{image_url}",
             'Body': buffer,
             'CacheControl': 'max-age=2592000',

@@ -103,7 +103,7 @@ class ImageHandler:
 
             # Check if image already exists
             first_resize_key = self.get_resize_key(hashed_url, self.IMAGE_RESIZES[0])
-            if await self.s3_service.head_object(first_resize_key):
+            if self.s3_service.head_object(first_resize_key):
                 print(f"Skipping {image_url} because {hashed_url} already exists")
                 return True
 
@@ -118,7 +118,7 @@ class ImageHandler:
             image_data, content_type = fetch_result
 
             # Upload original
-            await self.s3_service.put_object({
+            self.s3_service.put_object({
                 'Key': f"{self.ORIGINAL_PREFIX}/{hashed_url}",
                 'Body': image_data,
                 'CacheControl': 'max-age=31536000',
@@ -126,7 +126,7 @@ class ImageHandler:
             })
 
             # Get image size
-            size = await self.image_service.get_image_size(io.BytesIO(image_data))
+            size = self.image_service.get_image_size(io.BytesIO(image_data))
 
             # Process all sizes concurrently
             resize_tasks = [

@@ -6,7 +6,7 @@ class S3Operations:
         self.s3_client = boto3.client('s3')
         self.BUCKET = 'hotelmedia'
 
-    async def head_object(self, key: str) -> dict:
+    def head_object(self, key: str) -> dict:
         """
         Get metadata about an object in S3 without downloading it
         
@@ -26,7 +26,7 @@ class S3Operations:
         except ClientError:
             return None
 
-    async def put_object(self, object_params: dict) -> dict:
+    def put_object(self, object_params: dict) -> dict:
         """
         Upload an object to S3
         

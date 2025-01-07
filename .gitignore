@@ -1,6 +1,2 @@
 .aider*
 .env
-.DS_Store
-node_modules/
-python-layers/
-*-layer.zip

@@ -4,6 +4,7 @@ import hashlib
 import hmac
 from typing import Dict, List
 
+from src.utils.logger import logger
 from src.utils.image import image_handler
 
 class ConcurrencyLimiter:
@@ -47,7 +48,7 @@ class LambdaHandler:
                 return True
             return False
         except Exception as err:
-            print(f"Error processing image {record['url']}: {str(err)}")
+            logger.error(f"Error processing image {record['url']}: {str(err)}")
             return False
 
     async def handle(self, event: Dict) -> Dict:
@@ -60,7 +61,7 @@ class LambdaHandler:
         Returns:
             Dict: Updated event with processing results
         """
-        print(f"Received event: {json.dumps(event)}")
+        logger.debug(f"Received event: {json.dumps(event)}")
         
         has_failure = False
         limiter = ConcurrencyLimiter(event.get('concurrency', 10))
@@ -76,7 +77,7 @@ class LambdaHandler:
             has_failure = not all(results)
             
         except Exception as err:
-            print(f"Error in batch processing: {str(err)}")
+            logger.error(f"Error in batch processing: {str(err)}")
             has_failure = True
         
         # Update event based on results
@@ -87,7 +88,7 @@ class LambdaHandler:
             event.pop('failures', None)
             event.pop('retryWait', None)
         
-        print(f"Returning event: {json.dumps(event)}")
+        logger.debug(f"Returning event: {json.dumps(event)}")
         return event
 
 # Create handler instance

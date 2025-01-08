@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 import aiohttp
 
+from src.utils.logger import logger
 from src.utils.image import image_processor
 from src.utils.aws import s3
 
@@ -53,20 +54,20 @@ class ImageHandler:
                     elif response.status == 404:
                         # Try switching protocol
                         new_url = url.replace('https://', 'http://') if url.startswith('https') else url.replace('http://', 'https://')
-                        print(f'Trying different protocol: {new_url}')
+                        logger.debug(f'Trying different protocol: {new_url}')
                         async with session.get(new_url) as retry_response:
                             if retry_response.status == 200:
                                 return (
                                     await retry_response.read(),
                                     retry_response.headers.get('content-type')
                                 )
-                    print(f"Couldn't get {url} - status code: {response.status}")
+                    logger.error(f"Couldn't get {url} - status code: {response.status}")
                     return None
         except asyncio.TimeoutError:
-            print(f"Timeout fetching {url}")
+            logger.error(f"Timeout fetching {url}")
             return None
         except Exception as e:
-            print(f"Error fetching {url}: {str(e)}")
+            logger.error(f"Error fetching {url}: {str(e)}")
             return None
 
     async def handler(self, record: Dict) -> bool:
@@ -83,7 +84,7 @@ class ImageHandler:
             # Get image URL and determine type
             image_url = record.get('image', {}).get('url') or record.get('imageUrl')
             if not image_url:
-                print("No image URL provided")
+                logger.warning("No image URL provided")
                 return False
 
             # Infer image type
@@ -104,10 +105,10 @@ class ImageHandler:
             # Check if image already exists
             first_resize_key = self.get_resize_key(hashed_url, self.IMAGE_RESIZES[0])
             if self.s3_service.head_object(first_resize_key):
-                print(f"Skipping {image_url} because {hashed_url} already exists")
+                logger.debug(f"Skipping {image_url} because {hashed_url} already exists")
                 return True
 
-            print(f"Processing {image_url}")
+            logger.debug(f"Processing {image_url}")
             
             # Fetch image
             image_url = self.format_image_url(image_url)
@@ -145,5 +146,5 @@ class ImageHandler:
             return True
 
         except Exception as err:
-            print(f"Error processing {image_url}: {str(err)}")
+            logger.error(f"Error processing {image_url}: {str(err)}")
             return False

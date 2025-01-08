@@ -8,7 +8,7 @@ def main():
     """
     try:
         # Local JSON file path
-        json_file_path = "../test/1128559.json"
+        json_file_path = "test/1128559.json"
 
         # Read and parse JSON file
         logger.debug(f"Reading JSON file from: {json_file_path}")

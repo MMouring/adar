@@ -1,33 +1,31 @@
 import json
-from src.utils.aws.s3 import S3Operations
 from src.utils.logger import logger
 
 
 def main():
     """
-    Main function to download and process JSON from S3
+    Main function to read and process local JSON file
     """
     try:
-        # S3 bucket and key details
-        bucket_name = "your-bucket-name"  # Replace with your bucket name
-        file_key = "path/to/your/file.json"  # Replace with your file path
+        # Local JSON file path
+        json_file_path = "test/1128559.json"
 
-        # Initialize S3 client
-        s3_client = S3Operations(bucket=bucket_name)
-
-        # Download JSON file from S3
-        logger.debug(f"Downloading {file_key} from {bucket_name}")
-        response = s3_client.s3_client.get_object(
-            Bucket=bucket_name, Key=file_key)
-        file_content = response['Body'].read().decode('utf-8')
-
-        # Parse JSON content
-        data = json.loads(file_content)
+        # Read and parse JSON file
+        logger.debug(f"Reading JSON file from: {json_file_path}")
+        with open(json_file_path, 'r') as file:
+            data = json.load(file)
+            
         logger.debug(f"Successfully loaded JSON data: {json.dumps(data, indent=2)}")
 
         # TODO: Add your JSON processing logic here
         return data
 
+    except FileNotFoundError:
+        logger.error(f"JSON file not found at: {json_file_path}")
+        raise
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing JSON file: {str(e)}")
+        raise
     except Exception as e:
         logger.error(f"Error in main function: {str(e)}")
         raise
